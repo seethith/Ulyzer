@@ -1,0 +1,280 @@
+{
+  "common": {
+    "cancel": "取消",
+    "save": "保存",
+    "saved": "已保存 ✓",
+    "delete": "删除",
+    "confirm": "确认",
+    "close": "关闭",
+    "loading": "加载中…",
+    "saving": "保存中…",
+    "creating": "创建中…",
+    "no_key": "无需 Key",
+    "configured": "已配置",
+    "not_configured": "未配置",
+    "apply_for": "申请：{{hint}}"
+  },
+
+  "sidebar": {
+    "my_courses": "我的课程",
+    "settings": "设置",
+    "leave_confirm": "AI 正在生成内容，离开此页面将中断生成。\n已生成的内容会保留，是否继续？"
+  },
+
+  "course_page": {
+    "title": "我的课程",
+    "subtitle": "选择课程继续学习，或新建一个学习目标"
+  },
+
+  "course_card": {
+    "edit": "编辑课程信息",
+    "delete": "删除课程",
+    "confirm_delete": "确认删除课程？",
+    "delete_warning": "所有路线图和记录将一并删除",
+    "status_planning": "规划中",
+    "status_active": "学习中",
+    "status_done": "已完成",
+    "today": "今天",
+    "yesterday": "昨天",
+    "days_ago": "{{count}}天前"
+  },
+
+  "new_course": {
+    "button": "新建课程",
+    "title": "新建课程",
+    "label": "课程名称",
+    "placeholder": "例：Python 机器学习入门",
+    "error_empty": "请输入课程名称",
+    "error_failed": "创建失败，请重试"
+  },
+
+  "course_info_modal": {
+    "title": "课程信息",
+    "course_name": "课程名称",
+    "profile_hint": "学习档案（选填，帮助 AI 规划个性化路线）",
+    "goal_label": "学习目标",
+    "goal_placeholder": "想达到什么水平？为什么学？",
+    "known_label": "已掌握主题",
+    "known_placeholder": "已会的内容，如：Python基础、SQL查询、Git使用",
+    "time_label": "时间预算",
+    "time_placeholder": "每天几小时？共几个月？",
+    "depth_label": "学习深度",
+    "depth_quick": "快速了解",
+    "depth_quick_desc": "5-10 节点",
+    "depth_standard": "扎实掌握",
+    "depth_standard_desc": "12-25 节点",
+    "depth_deep": "深入精通",
+    "depth_deep_desc": "25-50 节点",
+    "error_empty": "请输入课程名称",
+    "error_save_failed": "保存失败，请重试",
+    "error_create_failed": "创建失败，请重试",
+    "btn_save": "保存",
+    "btn_create": "新建课程"
+  },
+
+  "dag_page": {
+    "breadcrumb_courses": "我的课程",
+    "chat_title": "主导师",
+    "chat_subtitle": "路线规划",
+    "preset_create_roadmap": "创建路线图",
+    "preset_create_roadmap_prefix": "请为我创建一份学习路线图，学习目标是",
+    "preset_add_node": "加节点",
+    "preset_add_node_prefix": "请在路线图中新增一个节点，节点内容是",
+    "preset_remove_node": "删节点",
+    "preset_remove_node_prefix": "请从路线图中删除节点"
+  },
+
+  "node_page": {
+    "breadcrumb_courses": "我的课程",
+    "breadcrumb_node": "节点学习",
+    "chat_title": "次导师",
+    "chat_subtitle": "节点交付",
+    "chat_empty": "描述你的学习目标\n我来帮你生成资料",
+    "preset_gen_theory": "生成原理资料",
+    "preset_gen_theory_prefix": "请按照当前节点的知识纲要，为我生成一份原理资料，要求",
+    "preset_gen_practice": "生成实践资料",
+    "preset_gen_practice_prefix": "请按照当前节点的知识纲要，为我生成一套练习题，要求",
+    "preset_gen_review": "生成复盘清单",
+    "preset_gen_review_prefix": "我已学完本节点，请为我生成一份费曼复盘清单，要求",
+    "preset_gen_outline": "生成大纲",
+    "preset_gen_outline_prefix": "请为当前节点生成（或升级）知识纲要",
+    "preset_gen_topic": "生成专题",
+    "preset_gen_topic_prefix": "我想深入了解某个知识点，请先列出当前纲要中可选的知识组件，我来指定",
+    "complete_node": "完成节点",
+    "complete_node_title": "完成节点学习",
+    "complete_step_theory": "学习原理",
+    "complete_step_practice": "进行实践",
+    "complete_step_review": "反思复盘",
+    "complete_desc": "完成一个节点建议遵循以下学习流程：",
+    "complete_theory_detail": "理解核心概念，将资料放入原理资料文件夹",
+    "complete_practice_detail": "动手练习，将实践记录放入实践资料文件夹",
+    "complete_review_detail": "用费曼技巧检验真实掌握程度，完成费曼复盘",
+    "complete_btn_cancel": "取消",
+    "complete_btn_confirm": "确认完成",
+    "completing": "完成中…"
+  },
+
+  "preset_commands": {
+    "label": "快捷指令"
+  },
+
+  "dag_toolbar": {
+    "generating": "生成中…",
+    "save": "保存",
+    "save_title": "保存路线图",
+    "relayout": "重新自动排列"
+  },
+
+  "dag_canvas": {
+    "empty_title": "路线图尚未生成",
+    "empty_subtitle": "在右侧描述学习目标，点击「创建路线图」",
+    "generating": "AI 正在生成路线图…"
+  },
+
+  "chat_messages": {
+    "view_reasoning": "查看思路",
+    "empty_default": "描述你的学习目标\n我来帮你规划路线"
+  },
+
+  "file_explorer": {
+    "header": "资源管理器",
+    "new_file": "新建文件",
+    "new_folder": "新建文件夹",
+    "refresh": "刷新",
+    "show_in_finder": "在文件管理器中显示",
+    "loading": "加载中…",
+    "file_placeholder": "文件名.md",
+    "folder_placeholder": "文件夹名",
+    "rename": "重命名",
+    "copy_path": "复制路径",
+    "delete": "删除"
+  },
+
+  "editor_area": {
+    "loading": "加载中…",
+    "image_load_failed": "无法加载图片",
+    "image_preview": "图片预览",
+    "unsupported_format": "不支持在此预览 {{ext}} 格式",
+    "show_in_finder": "在 Finder 中显示",
+    "click_to_open": "点击左侧文件打开"
+  },
+
+  "dag_node": {
+    "difficulty_beginner": "入门",
+    "difficulty_intermediate": "进阶",
+    "difficulty_advanced": "高级",
+    "status_locked": "未解锁",
+    "status_available": "可开始",
+    "status_active": "进行中",
+    "status_done": "已完成",
+    "hours_est": "{{count}} 学时",
+    "prerequisites": "前置节点",
+    "enter_node": "进入节点",
+    "node_locked": "节点已锁定",
+    "boss_label": "🏆 Boss 关"
+  },
+
+  "chat_panel": {
+    "web_search_no_key": "未配置 Tavily 搜索 API Key，请前往「设置 → 搜索设置」配置后再使用。"
+  },
+
+  "chat_input": {
+    "placeholder": "输入消息，或点击上方快捷命令…",
+    "upload_attachment": "上传附件",
+    "web_search_on": "开启网络搜索",
+    "web_search_off": "关闭网络搜索",
+    "stop_generating": "停止生成",
+    "drop_to_add": "释放以添加文件",
+    "unsupported_format": "不支持的格式：{{name}}。支持图片（JPG/PNG/GIF/WEBP）、PDF 以及文本/代码文件（MD/TXT/JS/TS/PY/GO/JSON/CSV 等）"
+  },
+
+  "model_selector": {
+    "search_placeholder": "搜索提供商…",
+    "no_key_warning": "未配置 API Key",
+    "select_model": "选择模型"
+  },
+
+  "settings": {
+    "title": "设置",
+    "nav_appearance": "界面外观",
+    "nav_model": "模型设置",
+    "nav_learning": "学习偏好",
+    "nav_search": "搜索设置",
+    "nav_about": "关于",
+
+    "appearance": {
+      "theme_label": "界面主题",
+      "theme_desc": "即时预览，保存后下次启动自动恢复",
+      "theme_warm": "暖纸",
+      "theme_warm_desc": "默认暖米色，护眼舒适",
+      "theme_white": "素白",
+      "theme_white_desc": "纯净中性白，简洁清爽",
+      "theme_dark": "黑夜",
+      "theme_dark_desc": "深色护眼，夜间推荐",
+      "language_label": "界面语言",
+      "language_zh": "中文",
+      "language_en": "English"
+    },
+
+    "model": {
+      "api_key_label": "API Key 管理",
+      "api_key_desc": "为每个提供商配置 API Key，点击展开管理",
+      "no_key_needed": "此提供商无需配置 API Key",
+      "service_url": "服务地址",
+      "key_stored_in_keychain": "Key 存储在系统 Keychain，不写入任何文件",
+      "paste_new_key": "粘贴新 Key 以覆盖…",
+      "paste_key": "粘贴 API Key…",
+      "delete_key_title": "删除已保存的 Key",
+      "delete_provider_title": "删除此提供商",
+      "fetch_models": "获取模型",
+      "models_updated": "模型已是最新",
+      "models_added": "新增 {{count}} 个模型",
+      "add_provider_btn": "添加自定义提供商（OpenAI 兼容接口）",
+      "add_provider_name": "名称 *",
+      "add_provider_name_placeholder": "如：My Provider",
+      "add_provider_type": "类型",
+      "add_provider_type_openai": "OpenAI 兼容",
+      "add_provider_type_ollama": "Ollama",
+      "add_provider_url_label": "Base URL *",
+      "add_provider_url_placeholder": "https://your-openai-compatible-endpoint/v1",
+      "add_provider_key_name": "Key 标识名（可选）",
+      "add_provider_key_name_placeholder": "留空则使用提供商 ID",
+      "add_provider_key": "API Key（可选，稍后在列表中配置）",
+      "add_provider_key_placeholder": "粘贴 API Key…",
+      "btn_add": "添加",
+      "adding": "保存中…"
+    },
+
+    "learning": {
+      "guidance_label": "引导模式",
+      "guidance_desc": "控制 AI 辅助学习时的引导风格",
+      "guidance_strict": "严格",
+      "guidance_strict_desc": "梯度引导，不直接给答案",
+      "guidance_balanced": "均衡",
+      "guidance_balanced_desc": "适度引导，允许提示",
+      "guidance_loose": "宽松",
+      "guidance_loose_desc": "可直接给出答案"
+    },
+
+    "search": {
+      "intro": "配置后，AI 在生成学习资料时会自动搜索网络以获取最新内容。未配置时退化为纯 LLM 生成，功能不受影响。",
+      "tavily_label": "Tavily Search API Key",
+      "tavily_desc": "通用网络搜索，擅长时效性内容（免费版每月 1000 次）。申请地址：app.tavily.com",
+      "exa_label": "Exa Search API Key",
+      "exa_desc": "语义神经搜索，擅长找权威文档、学术论文、高质量教程，与 Tavily 互补（免费版每月 1000 次）。申请地址：exa.ai",
+      "youtube_label": "YouTube Data API Key",
+      "youtube_desc": "用于体育/音乐/艺术等课题自动搜索教学视频（免费配额每日 10000 单位）。在 Google Cloud Console 申请。",
+      "paste_new_key": "粘贴新 Key 以覆盖…",
+      "delete_key_title": "删除已保存的 Key"
+    },
+
+    "about": {
+      "description": "任务导向、资源自适应的 AI 辅助学习系统。",
+      "tech_stack": "技术栈：Electron · React · TypeScript",
+      "database": "数据库：SQLite（本地）",
+      "ai_models": "AI：Claude · GPT · Gemini · Grok · DeepSeek · Qwen · MiniMax · OpenRouter · Ollama",
+      "thanks_title": "感谢以下开源项目",
+      "thanks_reactflow": "路线图可视化 — React Flow"
+    }
+  }
+}

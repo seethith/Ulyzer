@@ -1,0 +1,280 @@
+{
+  "common": {
+    "cancel": "Cancel",
+    "save": "Save",
+    "saved": "Saved ✓",
+    "delete": "Delete",
+    "confirm": "Confirm",
+    "close": "Close",
+    "loading": "Loading…",
+    "saving": "Saving…",
+    "creating": "Creating…",
+    "no_key": "No Key",
+    "configured": "Configured",
+    "not_configured": "Not configured",
+    "apply_for": "Get key: {{hint}}"
+  },
+
+  "sidebar": {
+    "my_courses": "My Courses",
+    "settings": "Settings",
+    "leave_confirm": "AI is generating content. Leaving will interrupt the stream.\nGenerated content will be preserved. Continue?"
+  },
+
+  "course_page": {
+    "title": "My Courses",
+    "subtitle": "Pick a course to continue, or start a new learning goal"
+  },
+
+  "course_card": {
+    "edit": "Edit course info",
+    "delete": "Delete course",
+    "confirm_delete": "Delete this course?",
+    "delete_warning": "All roadmaps and records will be removed",
+    "status_planning": "Planning",
+    "status_active": "Active",
+    "status_done": "Done",
+    "today": "Today",
+    "yesterday": "Yesterday",
+    "days_ago": "{{count}}d ago"
+  },
+
+  "new_course": {
+    "button": "New Course",
+    "title": "New Course",
+    "label": "Course Name",
+    "placeholder": "e.g. Python Machine Learning",
+    "error_empty": "Please enter a course name",
+    "error_failed": "Failed to create. Please try again."
+  },
+
+  "course_info_modal": {
+    "title": "Course Info",
+    "course_name": "Course Name",
+    "profile_hint": "Learning Profile (optional — helps AI plan a personalised roadmap)",
+    "goal_label": "Learning Goal",
+    "goal_placeholder": "What level do you want to reach? Why are you learning this?",
+    "known_label": "Known Topics",
+    "known_placeholder": "Topics you already know, e.g. Python basics, SQL queries, Git",
+    "time_label": "Time Budget",
+    "time_placeholder": "Hours per day? How many months?",
+    "depth_label": "Learning Depth",
+    "depth_quick": "Quick Overview",
+    "depth_quick_desc": "5–10 nodes",
+    "depth_standard": "Solid Grasp",
+    "depth_standard_desc": "12–25 nodes",
+    "depth_deep": "Deep Mastery",
+    "depth_deep_desc": "25–50 nodes",
+    "error_empty": "Please enter a course name",
+    "error_save_failed": "Failed to save. Please try again.",
+    "error_create_failed": "Failed to create. Please try again.",
+    "btn_save": "Save",
+    "btn_create": "Create Course"
+  },
+
+  "dag_page": {
+    "breadcrumb_courses": "My Courses",
+    "chat_title": "Main Tutor",
+    "chat_subtitle": "Route Planning",
+    "preset_create_roadmap": "Create Roadmap",
+    "preset_create_roadmap_prefix": "Please create a learning roadmap for me. My goal is",
+    "preset_add_node": "Add Node",
+    "preset_add_node_prefix": "Please add a new node to the roadmap. The content is",
+    "preset_remove_node": "Remove Node",
+    "preset_remove_node_prefix": "Please remove the node"
+  },
+
+  "node_page": {
+    "breadcrumb_courses": "My Courses",
+    "breadcrumb_node": "Node Study",
+    "chat_title": "Sub Tutor",
+    "chat_subtitle": "Node Delivery",
+    "chat_empty": "Describe your learning goal\nand I'll generate materials for you",
+    "preset_gen_theory": "Generate Theory",
+    "preset_gen_theory_prefix": "Following the current node outline, please generate theory material. Requirements:",
+    "preset_gen_practice": "Generate Practice",
+    "preset_gen_practice_prefix": "Following the current node outline, please generate practice exercises. Requirements:",
+    "preset_gen_review": "Generate Review",
+    "preset_gen_review_prefix": "I've finished this node. Please generate a Feynman review checklist. Requirements:",
+    "preset_gen_outline": "Generate Outline",
+    "preset_gen_outline_prefix": "Please generate (or upgrade) the knowledge outline for the current node",
+    "preset_gen_topic": "Deep Dive",
+    "preset_gen_topic_prefix": "I want to go deeper on a specific topic. First list the available components from the current outline, then I'll pick one.",
+    "complete_node": "Complete Node",
+    "complete_node_title": "Complete Node",
+    "complete_step_theory": "Study Theory",
+    "complete_step_practice": "Practice",
+    "complete_step_review": "Reflect & Review",
+    "complete_desc": "To finish a node well, follow this learning flow:",
+    "complete_theory_detail": "Understand core concepts and save materials to the Theory folder",
+    "complete_practice_detail": "Do hands-on exercises and save notes to the Practice folder",
+    "complete_review_detail": "Use the Feynman technique to verify real understanding",
+    "complete_btn_cancel": "Cancel",
+    "complete_btn_confirm": "Mark Complete",
+    "completing": "Completing…"
+  },
+
+  "preset_commands": {
+    "label": "Quick Commands"
+  },
+
+  "dag_toolbar": {
+    "generating": "Generating…",
+    "save": "Save",
+    "save_title": "Save roadmap",
+    "relayout": "Auto Re-layout"
+  },
+
+  "dag_canvas": {
+    "empty_title": "No Roadmap Yet",
+    "empty_subtitle": "Describe your goal on the right and click \"Create Roadmap\"",
+    "generating": "AI is generating the roadmap…"
+  },
+
+  "chat_messages": {
+    "view_reasoning": "View Reasoning",
+    "empty_default": "Describe your learning goal\nand I'll help you plan a route"
+  },
+
+  "file_explorer": {
+    "header": "Explorer",
+    "new_file": "New File",
+    "new_folder": "New Folder",
+    "refresh": "Refresh",
+    "show_in_finder": "Reveal in Finder",
+    "loading": "Loading…",
+    "file_placeholder": "filename.md",
+    "folder_placeholder": "folder name",
+    "rename": "Rename",
+    "copy_path": "Copy Path",
+    "delete": "Delete"
+  },
+
+  "editor_area": {
+    "loading": "Loading…",
+    "image_load_failed": "Failed to load image",
+    "image_preview": "Image Preview",
+    "unsupported_format": "Preview not supported for {{ext}} files",
+    "show_in_finder": "Reveal in Finder",
+    "click_to_open": "Click a file on the left to open"
+  },
+
+  "dag_node": {
+    "difficulty_beginner": "Beginner",
+    "difficulty_intermediate": "Intermediate",
+    "difficulty_advanced": "Advanced",
+    "status_locked": "Locked",
+    "status_available": "Available",
+    "status_active": "In Progress",
+    "status_done": "Done",
+    "hours_est": "{{count}} hr",
+    "prerequisites": "Prerequisites",
+    "enter_node": "Enter Node",
+    "node_locked": "Node Locked",
+    "boss_label": "🏆 Boss Level"
+  },
+
+  "chat_panel": {
+    "web_search_no_key": "Tavily API key not configured. Go to Settings → Search to add your key."
+  },
+
+  "chat_input": {
+    "placeholder": "Type a message or click a quick command above…",
+    "upload_attachment": "Upload attachment",
+    "web_search_on": "Enable web search",
+    "web_search_off": "Disable web search",
+    "stop_generating": "Stop generating",
+    "drop_to_add": "Drop to add file",
+    "unsupported_format": "Unsupported format: {{name}}. Supported: images (JPG/PNG/GIF/WEBP), PDF, and text/code files (MD/TXT/JS/TS/PY/GO/JSON/CSV, etc.)"
+  },
+
+  "model_selector": {
+    "search_placeholder": "Search providers…",
+    "no_key_warning": "API key not configured",
+    "select_model": "Select model"
+  },
+
+  "settings": {
+    "title": "Settings",
+    "nav_appearance": "Appearance",
+    "nav_model": "Models",
+    "nav_learning": "Learning",
+    "nav_search": "Search",
+    "nav_about": "About",
+
+    "appearance": {
+      "theme_label": "Theme",
+      "theme_desc": "Changes take effect immediately; restored on next launch",
+      "theme_warm": "Warm Paper",
+      "theme_warm_desc": "Warm cream, easy on the eyes",
+      "theme_white": "Clean White",
+      "theme_white_desc": "Pure neutral white, clean and crisp",
+      "theme_dark": "Dark",
+      "theme_dark_desc": "Dark mode, recommended at night",
+      "language_label": "Language",
+      "language_zh": "中文",
+      "language_en": "English"
+    },
+
+    "model": {
+      "api_key_label": "API Key Management",
+      "api_key_desc": "Configure API keys for each provider. Click to expand.",
+      "no_key_needed": "This provider does not require an API key",
+      "service_url": "Service URL",
+      "key_stored_in_keychain": "Key is stored in system Keychain — never written to any file",
+      "paste_new_key": "Paste new key to overwrite…",
+      "paste_key": "Paste API Key…",
+      "delete_key_title": "Delete saved key",
+      "delete_provider_title": "Delete this provider",
+      "fetch_models": "Fetch Models",
+      "models_updated": "Models are up to date",
+      "models_added": "{{count}} new model(s) added",
+      "add_provider_btn": "Add Custom Provider (OpenAI-compatible)",
+      "add_provider_name": "Name *",
+      "add_provider_name_placeholder": "e.g. My Provider",
+      "add_provider_type": "Type",
+      "add_provider_type_openai": "OpenAI Compatible",
+      "add_provider_type_ollama": "Ollama",
+      "add_provider_url_label": "Base URL *",
+      "add_provider_url_placeholder": "https://your-openai-compatible-endpoint/v1",
+      "add_provider_key_name": "Key identifier (optional)",
+      "add_provider_key_name_placeholder": "Leave blank to use provider ID",
+      "add_provider_key": "API Key (optional — configure later in the list)",
+      "add_provider_key_placeholder": "Paste API Key…",
+      "btn_add": "Add",
+      "adding": "Saving…"
+    },
+
+    "learning": {
+      "guidance_label": "Guidance Mode",
+      "guidance_desc": "Controls how the AI guides you while learning",
+      "guidance_strict": "Strict",
+      "guidance_strict_desc": "Gradual guidance, no direct answers",
+      "guidance_balanced": "Balanced",
+      "guidance_balanced_desc": "Moderate guidance, hints allowed",
+      "guidance_loose": "Loose",
+      "guidance_loose_desc": "Direct answers allowed"
+    },
+
+    "search": {
+      "intro": "When configured, the AI will search the web for up-to-date content while generating study materials. Without keys it falls back to pure LLM generation.",
+      "tavily_label": "Tavily Search API Key",
+      "tavily_desc": "General web search, great for current events (free tier: 1,000 req/month). Get key at: app.tavily.com",
+      "exa_label": "Exa Search API Key",
+      "exa_desc": "Semantic neural search, great for authoritative docs, papers, and tutorials (free tier: 1,000 req/month). Get key at: exa.ai",
+      "youtube_label": "YouTube Data API Key",
+      "youtube_desc": "Auto-searches tutorial videos for sports/music/arts topics (free quota: 10,000 units/day). Get key in Google Cloud Console.",
+      "paste_new_key": "Paste new key to overwrite…",
+      "delete_key_title": "Delete saved key"
+    },
+
+    "about": {
+      "description": "A task-driven, resource-adaptive AI learning system.",
+      "tech_stack": "Stack: Electron · React · TypeScript",
+      "database": "Database: SQLite (local)",
+      "ai_models": "AI: Claude · GPT · Gemini · Grok · DeepSeek · Qwen · MiniMax · OpenRouter · Ollama",
+      "thanks_title": "Open-source acknowledgements",
+      "thanks_reactflow": "Roadmap visualisation — React Flow"
+    }
+  }
+}

@@ -1,0 +1,253 @@
+@import url('https://fonts.googleapis.com/css2?family=Noto+Sans+SC:wght@400;500;600&display=swap');
+
+:root {
+  /* ── Tonal hierarchy (darkest → lightest) ────────────────────────────────
+     --sidebar  : 52px activity bar (nav icons) — deepest chrome
+     --topbar   : breadcrumb bar, panel section-headers, modal headers
+     --panel    : file explorer body, editor tab bar, toolbars
+     --bg       : editor canvas, DAG canvas, chat message area
+     --surface  : input box, cards, modals body
+     --surface2 : hover / selection states, inline code backgrounds
+  ──────────────────────────────────────────────────────────────────────── */
+  --sidebar:   #d4cfc5;
+  --topbar:    #e2ddd3;
+  --panel:     #eae6dc;
+  --bg:        #f2efe6;
+  --surface:   #faf7f0;
+  --surface2:  #d6d0c5;
+
+  /* Borders — nearly invisible, rely on background tones for separation */
+  --border:    rgba(0, 0, 0, 0.055);
+  --border2:   rgba(0, 0, 0, 0.10);
+
+  --text:      #1a1915;
+  --text2:     #6b6860;
+  --text3:     #a8a49c;
+  --accent:    #c96442;
+  --accent-s:  #f0ebe4;
+  --accent-b:  #e8d8cc;
+  --green:     #3d7a56;
+  --green-s:   #eaf2ed;
+  --amber:     #a0651a;
+  --amber-s:   #fdf4e7;
+  --mono:      'JetBrains Mono', monospace;
+  --sans:      'Noto Sans SC', system-ui, sans-serif;
+  --r:         6px;
+  --r2:        10px;
+  --sb:        48px;
+  --shadow:    0 1px 3px rgba(0,0,0,0.07), 0 0 0 1px rgba(0,0,0,0.05);
+
+  /* Allotment panel divider — barely visible */
+  --sash-color: rgba(0, 0, 0, 0.07);
+}
+
+/* ── 素白主题 ─────────────────────────────────────────────────────────────── */
+:root[data-theme="white"] {
+  --sidebar:   #e6e6e6;
+  --topbar:    #efefef;
+  --panel:     #f5f5f5;
+  --bg:        #ffffff;
+  --surface:   #fafafa;
+  --surface2:  #e0e0e0;
+
+  --border:    rgba(0, 0, 0, 0.08);
+  --border2:   rgba(0, 0, 0, 0.14);
+
+  --text:      #1a1a1a;
+  --text2:     #555555;
+  --text3:     #999999;
+  --accent:    #c96442;
+  --accent-s:  #fef3ee;
+  --accent-b:  #fde0d0;
+  --green:     #2e7d50;
+  --green-s:   #e8f5ed;
+  --amber:     #996010;
+  --amber-s:   #fdf4e5;
+  --shadow:    0 1px 4px rgba(0,0,0,0.09), 0 0 0 1px rgba(0,0,0,0.06);
+  --sash-color: rgba(0, 0, 0, 0.09);
+}
+
+/* ── 黑夜主题 ─────────────────────────────────────────────────────────────── */
+:root[data-theme="dark"] {
+  --sidebar:   #272727;
+  --topbar:    #2f2f2f;
+  --panel:     #363636;
+  --bg:        #2c2c2c;
+  --surface:   #3c3c3c;
+  --surface2:  #484848;
+
+  --border:    rgba(255, 255, 255, 0.07);
+  --border2:   rgba(255, 255, 255, 0.13);
+
+  --text:      #f0f0f0;
+  --text2:     #b8b8b8;
+  --text3:     #787878;
+  --accent:    #e07455;
+  --accent-s:  #2e1f18;
+  --accent-b:  #3e2a20;
+  --green:     #4a9966;
+  --green-s:   #1a2e20;
+  --amber:     #c07820;
+  --amber-s:   #2e2010;
+  --shadow:    0 1px 4px rgba(0,0,0,0.4), 0 0 0 1px rgba(255,255,255,0.04);
+  --sash-color: rgba(255, 255, 255, 0.05);
+}
+
+* {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+body {
+  background-color: var(--bg);
+  color: var(--text);
+  font-family: var(--sans);
+  -webkit-font-smoothing: antialiased;
+}
+
+/* ── Scrollbars ───────────────────────────────────────────────────────────── */
+
+::-webkit-scrollbar              { width: 6px; height: 6px; }
+::-webkit-scrollbar-track        { background: transparent; }
+::-webkit-scrollbar-thumb        { background: var(--surface2); border-radius: 3px; }
+::-webkit-scrollbar-thumb:hover  { background: var(--text3); }
+::-webkit-scrollbar-corner       { background: transparent; }
+
+/* ── ReactFlow Controls (dark-theme override) ─────────────────────────────── */
+
+:root[data-theme="dark"] .react-flow__controls-button {
+  background: var(--surface);
+  border-bottom-color: var(--border);
+}
+:root[data-theme="dark"] .react-flow__controls-button:hover {
+  background: var(--surface2);
+}
+:root[data-theme="dark"] .react-flow__controls-button svg {
+  fill: var(--text2);
+}
+
+#root {
+  width: 100vw;
+  height: 100vh;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+/* Animations */
+@keyframes cursor-blink {
+  0%, 100% { opacity: 1; }
+  50%       { opacity: 0; }
+}
+
+@keyframes spin {
+  from { transform: rotate(0deg); }
+  to   { transform: rotate(360deg); }
+}
+
+@keyframes pageFadeIn {
+  from { opacity: 0; }
+  to   { opacity: 1; }
+}
+
+@keyframes sidebarSlideIn {
+  from { transform: translateX(100%); opacity: 0; }
+  to   { transform: translateX(0);    opacity: 1; }
+}
+
+/* Markdown content rendered by StreamingMessage */
+.md-content h1, .md-content h2, .md-content h3 { font-weight: 600; margin: 12px 0 6px; }
+.md-content h1 { font-size: 16px; }
+.md-content h2 { font-size: 14px; }
+.md-content h3 { font-size: 13px; }
+.md-content p  { margin: 0 0 8px; }
+.md-content ul, .md-content ol { padding-left: 20px; margin: 0 0 8px; }
+.md-content li { margin: 2px 0; }
+.md-content code {
+  font-family: var(--mono);
+  font-size: 12px;
+  background: var(--panel);
+  border-radius: 3px;
+  padding: 1px 4px;
+}
+.md-content pre {
+  background: var(--panel);
+  border-radius: var(--r);
+  padding: 10px 12px;
+  overflow-x: auto;
+  margin: 8px 0;
+}
+.md-content pre code {
+  background: none;
+  border: none;
+  padding: 0;
+  font-size: 12px;
+}
+.md-content blockquote {
+  border-left: 3px solid var(--accent-b);
+  padding-left: 10px;
+  color: var(--text2);
+  margin: 8px 0;
+}
+.md-content a { color: var(--accent); text-decoration: underline; }
+.md-content strong { font-weight: 600; }
+.md-content hr { border: none; border-top: 1px solid var(--border); margin: 12px 0; }
+.md-content table { width: 100%; border-collapse: collapse; margin: 10px 0; font-size: 13px; }
+.md-content th, .md-content td { border: 1px solid var(--border); padding: 6px 10px; text-align: left; }
+.md-content th { background: var(--surface2); font-weight: 600; }
+
+/* ── Markdown body (FilePanel views) ─────────────────────────────── */
+.markdown-body { font-family: var(--sans); }
+.markdown-body h1 { font-size: 18px; font-weight: 700; margin: 0 0 12px; color: var(--text); }
+.markdown-body h2 { font-size: 15px; font-weight: 700; margin: 20px 0 8px; color: var(--text); padding-bottom: 6px; border-bottom: 1px solid var(--border2); }
+.markdown-body h3 { font-size: 13px; font-weight: 700; margin: 16px 0 6px; color: var(--text); }
+.markdown-body h4 { font-size: 12px; font-weight: 600; margin: 12px 0 4px; color: var(--text2); }
+.markdown-body p  { margin: 0 0 10px; color: var(--text); }
+.markdown-body ul, .markdown-body ol { padding-left: 20px; margin: 0 0 10px; color: var(--text); }
+.markdown-body li { margin-bottom: 4px; }
+.markdown-body code { font-family: var(--mono); font-size: 12px; background: var(--panel); border-radius: 3px; padding: 1px 5px; }
+.markdown-body pre { background: var(--panel); border-radius: var(--r); padding: 12px 14px; overflow-x: auto; margin: 10px 0; }
+.markdown-body pre code { background: none; border: none; padding: 0; font-size: 12px; }
+.markdown-body blockquote { border-left: 3px solid var(--accent-b); padding: 4px 0 4px 12px; margin: 10px 0; color: var(--text2); font-style: italic; }
+.markdown-body strong { font-weight: 700; }
+.markdown-body hr { border: none; border-top: 1px solid var(--border); margin: 16px 0; }
+.markdown-body table { width: 100%; border-collapse: collapse; margin: 10px 0; font-size: 12px; }
+.markdown-body th, .markdown-body td { border: 1px solid var(--border); padding: 6px 10px; text-align: left; }
+.markdown-body th { background: var(--surface2); font-weight: 600; }
+
+/* ── RichEditor (theory / practice / answer / attachment) ────────── */
+.rich-editor-wrap { height: 100%; overflow-y: auto; padding: 20px 24px; box-sizing: border-box; }
+.rich-editor-wrap .tiptap { outline: none; font-size: 13px; line-height: 1.8; color: var(--text); font-family: var(--sans); min-height: 100px; }
+.rich-editor-wrap .tiptap p { margin: 0 0 10px; }
+.rich-editor-wrap .tiptap h1 { font-size: 18px; font-weight: 700; margin: 0 0 12px; }
+.rich-editor-wrap .tiptap h2 { font-size: 15px; font-weight: 700; margin: 20px 0 8px; padding-bottom: 6px; border-bottom: 1px solid var(--border2); }
+.rich-editor-wrap .tiptap h3 { font-size: 13px; font-weight: 700; margin: 16px 0 6px; }
+.rich-editor-wrap .tiptap h4 { font-size: 12px; font-weight: 600; margin: 12px 0 4px; color: var(--text2); }
+.rich-editor-wrap .tiptap ul, .rich-editor-wrap .tiptap ol { padding-left: 20px; margin: 0 0 10px; }
+.rich-editor-wrap .tiptap li { margin-bottom: 4px; }
+.rich-editor-wrap .tiptap strong { font-weight: 700; }
+.rich-editor-wrap .tiptap blockquote { border-left: 3px solid var(--accent-b); padding: 4px 0 4px 12px; margin: 10px 0; color: var(--text2); font-style: italic; }
+.rich-editor-wrap .tiptap hr { border: none; border-top: 1px solid var(--border); margin: 16px 0; }
+.rich-editor-wrap .tiptap code { font-family: var(--mono); font-size: 12px; background: var(--panel); border-radius: 3px; padding: 1px 5px; }
+.rich-editor-wrap .tiptap pre { background: var(--panel); border-radius: var(--r); padding: 12px 14px; overflow-x: auto; margin: 10px 0; }
+.rich-editor-wrap .tiptap pre code { background: none; border: none; padding: 0; font-size: 12px; }
+.rich-editor-wrap .tiptap table { width: 100%; border-collapse: collapse; margin: 10px 0; font-size: 12px; }
+.rich-editor-wrap .tiptap th, .rich-editor-wrap .tiptap td { border: 1px solid var(--border); padding: 6px 10px; text-align: left; }
+.rich-editor-wrap .tiptap th { background: var(--surface2); font-weight: 600; }
+.rich-editor-wrap .tiptap a { color: var(--accent); text-decoration: underline; cursor: pointer; }
+.rich-editor-wrap .tiptap a:hover { opacity: 0.8; }
+
+/* ── TipTap notebook editor ───────────────────────────────────────── */
+.notebook-editor-wrap .tiptap { outline: none; min-height: 200px; font-size: 13px; line-height: 1.8; color: var(--text); }
+.notebook-editor-wrap .tiptap p { margin: 0 0 8px; }
+.notebook-editor-wrap .tiptap h2 { font-size: 15px; font-weight: 700; margin: 16px 0 6px; }
+.notebook-editor-wrap .tiptap h3 { font-size: 13px; font-weight: 700; margin: 12px 0 4px; }
+.notebook-editor-wrap .tiptap ul, .notebook-editor-wrap .tiptap ol { padding-left: 20px; margin: 0 0 8px; }
+.notebook-editor-wrap .tiptap li { margin-bottom: 3px; }
+.notebook-editor-wrap .tiptap code { font-family: var(--mono); font-size: 12px; background: var(--panel); border-radius: 3px; padding: 1px 4px; }
+.notebook-editor-wrap .tiptap pre { background: var(--panel); border-radius: var(--r); padding: 10px 12px; overflow-x: auto; margin: 8px 0; }
+.notebook-editor-wrap .tiptap pre code { background: none; border: none; padding: 0; }
+.notebook-editor-wrap .tiptap blockquote { border-left: 3px solid var(--accent-b); padding-left: 10px; color: var(--text2); margin: 8px 0; }
+.notebook-editor-wrap .tiptap strong { font-weight: 700; }
+.notebook-editor-wrap .tiptap p.is-editor-empty:first-child::before { content: attr(data-placeholder); color: var(--text3); pointer-events: none; float: left; height: 0; }

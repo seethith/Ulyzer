@@ -1,0 +1,42 @@
+# Dependencies
+node_modules/
+
+# Build output
+dist/
+out/
+
+# TypeScript incremental build cache
+*.tsbuildinfo
+
+# Environment variables
+.env
+.env.*
+.env.local
+
+# Local database and user data
+*.sqlite
+*.db
+
+# Logs
+*.log
+*.log.*
+npm-debug.log*
+
+# Packaging output
+release/
+*.dmg
+*.exe
+*.AppImage
+*.deb
+*.rpm
+
+# Test coverage
+coverage/
+
+# System files
+.DS_Store
+Thumbs.db
+
+# Editor
+.eslintcache
+.vscode/settings.json
