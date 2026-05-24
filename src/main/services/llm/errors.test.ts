@@ -29,16 +29,24 @@ describe('classifyError', () => {
     expect(classifyError(new Error('request cancelled')).type).toBe('abort');
   });
 
+  it('classifies network/API connection errors', () => {
+    expect(classifyError(new Error('Connection error.')).type).toBe('network_error');
+    expect(classifyError(new Error('fetch failed')).type).toBe('network_error');
+    expect(classifyError(Object.assign(new Error('socket hang up'), { code: 'ECONNRESET' })).type).toBe('network_error');
+    expect(classifyError(Object.assign(new Error('APIConnectionError'), { name: 'APIConnectionError' })).retryable).toBe(true);
+  });
+
   it('classifies unknown errors', () => {
-    const result = classifyError(new Error('some random network failure'));
+    const result = classifyError(new Error('some random failure'));
     expect(result.type).toBe('unknown');
     expect(result.retryable).toBe(false);
-    expect(result.message).toBe('some random network failure');
+    expect(result.message).toBe('some random failure');
   });
 
   it('marks rate_limit and context_too_long as retryable', () => {
     expect(classifyError(new Error('rate_limit')).retryable).toBe(true);
     expect(classifyError(new Error('context_length')).retryable).toBe(true);
+    expect(classifyError(new Error('Connection error.')).retryable).toBe(true);
   });
 
   it('marks auth and model errors as non-retryable', () => {

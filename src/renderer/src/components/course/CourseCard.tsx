@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Trash2, Pencil } from 'lucide-react';
+import { ArrowRight, Trash2, Pencil } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import type { Course, CourseStatus } from '@shared/types';
 
@@ -8,6 +8,7 @@ interface CourseCardProps {
   onClick: () => void;
   onDelete: () => void;
   onEdit: () => void;
+  staggerIndex?: number;
 }
 
 const STATUS_DOT: Record<CourseStatus, string> = {
@@ -28,50 +29,69 @@ function formatDate(iso: string, t: (key: string, opts?: Record<string, unknown>
   return `${d.getFullYear()}/${String(d.getMonth() + 1).padStart(2, '0')}/${String(d.getDate()).padStart(2, '0')}`;
 }
 
-export const CourseCard: React.FC<CourseCardProps> = ({ course, onClick, onDelete, onEdit }) => {
+type CardStyle = React.CSSProperties & { '--ui-stagger-delay'?: string };
+
+export const CourseCard: React.FC<CourseCardProps> = ({ course, onClick, onDelete, onEdit, staggerIndex = 0 }) => {
   const { t } = useTranslation();
   const [hovered, setHovered]       = useState(false);
   const [confirming, setConfirming] = useState(false);
+  const [pressed, setPressed]       = useState(false);
 
   const progress = course.total_nodes > 0
     ? course.done_nodes / course.total_nodes
     : 0;
+  const progressPercent = Math.round(progress * 100);
+  const statusLabel = course.status !== 'new'
+    ? t(`course_card.status_${course.status}`)
+    : t('course_card.status_new');
+  const supportingText = course.goal_text?.trim() || course.description?.trim() || t('course_card.no_goal');
 
   return (
     <div
+      className="ui-course-card ui-stagger-item"
       onClick={confirming ? undefined : onClick}
       onMouseEnter={() => setHovered(true)}
-      onMouseLeave={() => { setHovered(false); setConfirming(false); }}
+      onMouseDown={() => { if (!confirming) setPressed(true); }}
+      onMouseUp={() => setPressed(false)}
+      onMouseLeave={() => { setHovered(false); setConfirming(false); setPressed(false); }}
       style={{
-        width: 158,
-        backgroundColor: confirming ? 'var(--red-s, #fef2f2)' : 'var(--surface)',
+        width: 260,
+        height: 180,
+        backgroundColor: confirming ? 'var(--red-s, #fef2f2)' : 'var(--app-workspace-card-bg-strong, var(--surface))',
         border: `1px solid ${confirming ? 'var(--red, #ef4444)' : hovered ? 'var(--border2)' : 'var(--border)'}`,
         borderRadius: 'var(--r2)',
-        padding: '14px 14px 12px',
+        padding: '16px',
         cursor: confirming ? 'default' : 'pointer',
         userSelect: 'none',
         display: 'flex',
         flexDirection: 'column',
-        gap: 8,
-        boxShadow: hovered && !confirming ? '0 4px 12px rgba(0,0,0,0.08)' : 'var(--shadow)',
-        transform: hovered && !confirming ? 'translateY(-1px)' : 'none',
+        gap: 12,
+        boxShadow: hovered && !confirming ? '0 7px 18px rgba(0,0,0,0.09)' : 'var(--shadow)',
+        transform: pressed && !confirming
+          ? 'translateY(1px) scale(0.995)'
+          : hovered && !confirming
+            ? 'translateY(-1px)'
+            : 'none',
         transition: 'box-shadow 0.15s, transform 0.15s, border-color 0.15s, background-color 0.15s',
         position: 'relative',
-      }}
+        '--ui-stagger-delay': `${Math.min(staggerIndex, 8) * 42}ms`,
+      } as CardStyle}
     >
       {/* Top-right: status dot / action buttons */}
       {confirming ? null : hovered ? (
-        <div style={{ position: 'absolute', top: 6, right: 6, display: 'flex', gap: 2 }}>
+        <div style={{ position: 'absolute', top: 10, right: 10, display: 'flex', gap: 2 }}>
           <button
+            className="ui-pressable"
             onClick={(e) => { e.stopPropagation(); onEdit(); }}
             title={t('course_card.edit')}
             style={iconBtnStyle}
-            onMouseEnter={(e) => { (e.currentTarget as HTMLButtonElement).style.backgroundColor = 'var(--surface2)'; (e.currentTarget as HTMLButtonElement).style.color = 'var(--text2)'; }}
+            onMouseEnter={(e) => { (e.currentTarget as HTMLButtonElement).style.backgroundColor = 'var(--app-workspace-muted-bg, var(--surface2))'; (e.currentTarget as HTMLButtonElement).style.color = 'var(--text2)'; }}
             onMouseLeave={(e) => { (e.currentTarget as HTMLButtonElement).style.backgroundColor = 'transparent'; (e.currentTarget as HTMLButtonElement).style.color = 'var(--text3)'; }}
           >
             <Pencil size={11} />
           </button>
           <button
+            className="ui-pressable"
             onClick={(e) => { e.stopPropagation(); setConfirming(true); }}
             title={t('course_card.delete')}
             style={iconBtnStyle}
@@ -83,64 +103,109 @@ export const CourseCard: React.FC<CourseCardProps> = ({ course, onClick, onDelet
         </div>
       ) : (
         <div style={{
-          position: 'absolute', top: 12, right: 12,
-          width: 7, height: 7, borderRadius: '50%',
+          position: 'absolute', top: 16, right: 16,
+          width: 8, height: 8, borderRadius: '50%',
           backgroundColor: STATUS_DOT[course.status], flexShrink: 0,
         }} />
       )}
 
-      {/* Course name */}
-      <div style={{
-        fontSize: 13, fontWeight: 600, color: 'var(--text)', lineHeight: 1.4,
-        paddingRight: 14, display: '-webkit-box', WebkitLineClamp: 3,
-        WebkitBoxOrient: 'vertical', overflow: 'hidden', minHeight: 54,
-      }}>
-        {course.name}
-      </div>
-
-      {/* Progress bar */}
-      <div style={{
-        height: 3,
-        backgroundColor: 'var(--border)',
-        borderRadius: 2,
-        overflow: 'hidden',
-      }}>
+      <div style={{ display: 'flex', flexDirection: 'column', gap: 8, minHeight: 76 }}>
         <div style={{
-          height: '100%',
-          width: `${Math.round(progress * 100)}%`,
-          backgroundColor: 'var(--green)',
-          borderRadius: 2,
-          transition: 'width 0.3s',
-        }} />
+          fontSize: 15,
+          fontWeight: 700,
+          color: 'var(--text)',
+          lineHeight: 1.35,
+          paddingRight: 28,
+          display: '-webkit-box',
+          WebkitLineClamp: 2,
+          WebkitBoxOrient: 'vertical',
+          overflow: 'hidden',
+        }}>
+          {course.name}
+        </div>
+
+        <div style={{
+          display: 'flex',
+          alignItems: 'center',
+          gap: 8,
+          minWidth: 0,
+        }}>
+          <span style={{
+            fontSize: 11,
+            lineHeight: '20px',
+            height: 20,
+            padding: '0 8px',
+            borderRadius: 999,
+            backgroundColor: course.status === 'active' ? 'var(--accent-s)' : 'var(--app-workspace-muted-bg, var(--surface2))',
+            border: '1px solid var(--border)',
+            color: course.status === 'active' ? 'var(--accent)' : 'var(--text2)',
+            fontWeight: course.status === 'active' ? 600 : 500,
+            flexShrink: 0,
+          }}>
+            {statusLabel}
+          </span>
+          <span style={{
+            fontSize: 12,
+            color: 'var(--text3)',
+            overflow: 'hidden',
+            textOverflow: 'ellipsis',
+            whiteSpace: 'nowrap',
+          }}>
+            {supportingText}
+          </span>
+        </div>
       </div>
 
-      {/* Footer */}
+      <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+        <div style={{ display: 'flex', alignItems: 'baseline', justifyContent: 'space-between' }}>
+          <span style={{ fontSize: 11, color: 'var(--text3)' }}>{t('course_card.progress')}</span>
+          <span style={{ fontSize: 12, color: 'var(--text2)', fontFamily: 'var(--mono)', fontWeight: 600 }}>
+            {course.done_nodes}/{course.total_nodes} · {progressPercent}%
+          </span>
+        </div>
+        <div style={{
+          height: 5,
+          backgroundColor: 'var(--border)',
+          borderRadius: 999,
+          overflow: 'hidden',
+        }}>
+          <div style={{
+            height: '100%',
+            width: `${progressPercent}%`,
+            backgroundColor: course.status === 'done' ? 'var(--green)' : 'var(--accent)',
+            borderRadius: 999,
+            transition: 'width 0.3s',
+          }} className="ui-progress-fill" />
+        </div>
+      </div>
+
       <div style={{
         display: 'flex',
         alignItems: 'center',
         justifyContent: 'space-between',
-        marginTop: 2,
+        marginTop: 'auto',
       }}>
+        <span style={{ fontSize: 11, color: 'var(--text3)' }}>
+          {formatDate(course.updated_at, t)}
+        </span>
         <span style={{
-          fontSize: 11,
-          color: course.status === 'active' ? 'var(--accent)' : 'var(--text3)',
-          fontWeight: course.status === 'active' ? 500 : 400,
+          display: 'inline-flex',
+          alignItems: 'center',
+          gap: 4,
+          fontSize: 12,
+          fontWeight: 600,
+          color: hovered ? 'var(--accent)' : 'var(--text2)',
+          transition: 'color 0.15s',
         }}>
-          {course.status !== 'new' ? t(`course_card.status_${course.status}`) : ''}
+          {t('course_card.continue_learning')}
+          <ArrowRight className="ui-course-arrow" size={12} />
         </span>
-        <span style={{ fontSize: 11, color: 'var(--text3)', fontFamily: 'var(--mono)' }}>
-          {course.done_nodes}/{course.total_nodes}
-        </span>
-      </div>
-
-      {/* Updated at */}
-      <div style={{ fontSize: 11, color: 'var(--text3)' }}>
-        {formatDate(course.updated_at, t)}
       </div>
 
       {/* Confirmation overlay */}
       {confirming && (
         <div
+          className="ui-scale-in"
           onClick={(e) => e.stopPropagation()}
           style={{
             position: 'absolute',
@@ -152,10 +217,10 @@ export const CourseCard: React.FC<CourseCardProps> = ({ course, onClick, onDelet
             alignItems: 'center',
             justifyContent: 'center',
             gap: 10,
-            padding: 12,
+            padding: 20,
           }}
         >
-          <span style={{ fontSize: 12, fontWeight: 600, color: 'var(--red, #ef4444)', textAlign: 'center' }}>
+          <span style={{ fontSize: 13, fontWeight: 700, color: 'var(--red, #ef4444)', textAlign: 'center' }}>
             {t('course_card.confirm_delete')}
           </span>
           <span style={{ fontSize: 11, color: 'var(--text3)', textAlign: 'center', lineHeight: 1.4 }}>
@@ -163,13 +228,14 @@ export const CourseCard: React.FC<CourseCardProps> = ({ course, onClick, onDelet
           </span>
           <div style={{ display: 'flex', gap: 6 }}>
             <button
+              className="ui-pressable"
               onClick={(e) => { e.stopPropagation(); setConfirming(false); }}
               style={{
                 padding: '4px 10px',
                 fontSize: 12,
                 border: '1px solid var(--border2)',
                 borderRadius: 'var(--r)',
-                backgroundColor: 'var(--surface)',
+                backgroundColor: 'var(--app-workspace-card-bg-strong, var(--surface))',
                 color: 'var(--text2)',
                 cursor: 'pointer',
               }}
@@ -177,6 +243,7 @@ export const CourseCard: React.FC<CourseCardProps> = ({ course, onClick, onDelet
               {t('common.cancel')}
             </button>
             <button
+              className="ui-pressable"
               onClick={(e) => { e.stopPropagation(); onDelete(); }}
               style={{
                 padding: '4px 10px',

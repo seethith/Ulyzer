@@ -11,6 +11,7 @@ async function dbInvoke<T>(channel: string, ...args: unknown[]): Promise<T> {
 interface CourseState {
   courses: Course[];
   loading: boolean;
+  loaded: boolean;
   error: string | null;
 
   loadCourses: () => Promise<void>;
@@ -19,18 +20,20 @@ interface CourseState {
   deleteCourse: (id: string) => Promise<void>;
 }
 
-export const useCourseStore = create<CourseState>((set) => ({
+export const useCourseStore = create<CourseState>((set, get) => ({
   courses: [],
   loading: false,
+  loaded: false,
   error: null,
 
   loadCourses: async () => {
+    if (get().loading) return;
     set({ loading: true, error: null });
     try {
       const courses = await dbInvoke<Course[]>(IPC.DB_COURSE_LIST);
-      set({ courses, loading: false });
+      set({ courses, loading: false, loaded: true });
     } catch (e) {
-      set({ error: String(e), loading: false });
+      set({ error: String(e), loading: false, loaded: true });
     }
   },
 
@@ -48,7 +51,17 @@ export const useCourseStore = create<CourseState>((set) => ({
   },
 
   deleteCourse: async (id: string) => {
-    await dbInvoke<void>(IPC.DB_COURSE_DELETE, id);
-    set((s) => ({ courses: s.courses.filter((c) => c.id !== id) }));
+    // Optimistic: remove the card immediately so the click feels instant; the
+    // heavy backend teardown (DB cascade + recursive course-dir deletion) runs in
+    // the background. Restore the list if the backend deletion fails.
+    const prev = get().courses;
+    if (!prev.some((c) => c.id === id)) return;
+    set({ courses: prev.filter((c) => c.id !== id) });
+    try {
+      await dbInvoke<void>(IPC.DB_COURSE_DELETE, id);
+    } catch (e) {
+      set({ courses: prev });
+      throw e;
+    }
   },
 }));

@@ -3,8 +3,9 @@
 export type LLMErrorType =
   | 'rate_limit'        // 触发指数退避重试
   | 'context_too_long'  // 触发上下文压缩
+  | 'network_error'     // 网络/API 网关/流式连接失败，可重试
   | 'auth_error'        // API Key 无效，不可重试
-  | 'tool_execution'    // 工具执行失败，返回给模型重试
+  | 'tool_execution'    // Tool execution failed; return to model for retry
   | 'model_unavailable' // 模型不可用
   | 'output_truncated'  // 输出被截断
   | 'abort'             // 用户主动取消
@@ -17,8 +18,62 @@ export interface ClassifiedError {
   raw: unknown;
 }
 
+export interface ErrorDebugDetails {
+  errorName?: string;
+  rawMessage?: string;
+  errorCode?: string | number;
+  status?: string | number;
+  causeName?: string;
+  causeMessage?: string;
+  causeCode?: string | number;
+}
+
+function asRecord(value: unknown): Record<string, unknown> | undefined {
+  return value && typeof value === 'object' ? value as Record<string, unknown> : undefined;
+}
+
+function stringField(value: unknown): string | undefined {
+  return typeof value === 'string' && value.trim() ? value : undefined;
+}
+
+function codeField(value: unknown): string | number | undefined {
+  return typeof value === 'string' || typeof value === 'number' ? value : undefined;
+}
+
+export function errorDebugDetails(err: unknown): ErrorDebugDetails {
+  const record = asRecord(err);
+  const cause = asRecord(record?.cause);
+  const message = err instanceof Error ? err.message : String(err);
+  return {
+    ...(err instanceof Error && err.name ? { errorName: err.name } : {}),
+    rawMessage: message,
+    ...(record ? {
+      ...(codeField(record.code) !== undefined ? { errorCode: codeField(record.code) } : {}),
+      ...(codeField(record.status) !== undefined ? { status: codeField(record.status) } : {}),
+    } : {}),
+    ...(cause ? {
+      ...(stringField(cause.name) ? { causeName: stringField(cause.name) } : {}),
+      ...(stringField(cause.message) ? { causeMessage: stringField(cause.message) } : {}),
+      ...(codeField(cause.code) !== undefined ? { causeCode: codeField(cause.code) } : {}),
+    } : {}),
+  };
+}
+
+function searchableErrorText(err: unknown): string {
+  const debug = errorDebugDetails(err);
+  return [
+    debug.errorName,
+    debug.rawMessage,
+    debug.errorCode,
+    debug.status,
+    debug.causeName,
+    debug.causeMessage,
+    debug.causeCode,
+  ].filter((part) => part !== undefined && part !== null).join(' ').toLowerCase();
+}
+
 export function classifyError(err: unknown): ClassifiedError {
-  const msg = String(err instanceof Error ? err.message : err).toLowerCase();
+  const msg = searchableErrorText(err);
 
   if (msg.includes('rate_limit') || msg.includes('429') || msg.includes('too many requests'))
     return { type: 'rate_limit', message: '请求过于频繁，正在重试…', retryable: true, raw: err };
@@ -30,6 +85,36 @@ export function classifyError(err: unknown): ClassifiedError {
     msg.includes('context window')
   )
     return { type: 'context_too_long', message: '上下文过长，正在压缩…', retryable: true, raw: err };
+
+  if (
+    msg.includes('connection error') ||
+    msg.includes('api connection') ||
+    msg.includes('apiconnectionerror') ||
+    msg.includes('fetch failed') ||
+    msg.includes('network') ||
+    msg.includes('socket') ||
+    msg.includes('timeout') ||
+    msg.includes('timed out') ||
+    msg.includes('econnreset') ||
+    msg.includes('econnrefused') ||
+    msg.includes('enotfound') ||
+    msg.includes('etimedout') ||
+    msg.includes('eai_again') ||
+    msg.includes('und_err') ||
+    msg.includes('terminated') ||
+    msg.includes('tls') ||
+    msg.includes('certificate') ||
+    msg.includes('self signed') ||
+    msg.includes('unable to verify') ||
+    msg.includes('proxy') ||
+    msg.includes('dns')
+  )
+    return {
+      type: 'network_error',
+      message: '模型 API 连接失败：请检查网络/代理、API Base URL 和供应商服务状态；如果发生在长回答或工具调用后，也可能是流式连接中断。',
+      retryable: true,
+      raw: err,
+    };
 
   if (
     msg.includes('401') ||
@@ -53,7 +138,7 @@ export function classifyError(err: unknown): ClassifiedError {
 
   return {
     type: 'unknown',
-    message: String(err instanceof Error ? err.message : err),
+    message: errorDebugDetails(err).rawMessage ?? String(err),
     retryable: false,
     raw: err,
   };

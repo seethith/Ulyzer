@@ -1,23 +1,19 @@
 export const IPC = {
   // LLM
-  LLM_STREAM_START:   'llm:stream:start',
   LLM_STREAM_CHUNK:   'llm:stream:chunk',
   LLM_STREAM_END:     'llm:stream:end',
   LLM_STREAM_ERROR:   'llm:stream:error',
+  LLM_TOOL_CALL:      'llm:tool:call',
+  LLM_TOOL_RESULT:    'llm:tool:result',
   LLM_ABORT:          'llm:abort',
 
   // Agent
-  AGENT_PLAN:               'agent:plan',
   AGENT_CHAT:               'agent:chat',
-  AGENT_GENERATE:           'agent:generate',
-  AGENT_FEYNMAN_CHECKLIST:  'agent:feynman:checklist',
-  AGENT_FEYNMAN_SUMMARY:    'agent:feynman:summary',
-
-  // DAG
-  DAG_GENERATE:       'dag:generate',
-  DAG_UPDATE_NODE:    'dag:update-node',
-  DAG_DELETE_NODE:    'dag:delete-node',
-  DAG_ADD_NODE:       'dag:add-node',
+  CHAT_RUN_EVENT:           'chat-run:event',
+  AGENT_CONTEXT_STATUS:     'agent:context-status',
+  CHAT_ATTACHMENT_PREPARE:  'chat-attachment:prepare',
+  CHAT_ATTACHMENT_STATUS:   'chat-attachment:status',
+  CHAT_ATTACHMENT_REMOVE:   'chat-attachment:remove',
 
   // DB — Course
   DB_COURSE_LIST:     'db:course:list',
@@ -38,10 +34,6 @@ export const IPC = {
   DB_FILE_CREATE:     'db:file:create',
   DB_FILE_UPDATE:     'db:file:update',
 
-  // DB — Notebook
-  DB_NOTEBOOK_GET:    'db:notebook:get',
-  DB_NOTEBOOK_SAVE:   'db:notebook:save',
-
   // DB — Node
   DB_NODE_GET:        'db:node:get',
   DB_NODE_COMPLETE:   'db:node:complete',
@@ -49,7 +41,9 @@ export const IPC = {
   // DB — Messages
   DB_MESSAGES_GET:    'db:messages:get',
   DB_MESSAGE_CREATE:  'db:message:create',
+  DB_MESSAGE_UPDATE:  'db:message:update',
   DB_MESSAGE_DELETE:  'db:message:delete',
+  DB_MESSAGE_EDIT_AND_TRUNCATE: 'db:message:edit-and-truncate',
 
   // DB — Chat threads
   DB_THREAD_LIST:     'db:thread:list',
@@ -65,18 +59,14 @@ export const IPC = {
 
   // DB — Provider models
   DB_MODEL_LIST:      'db:model:list',
-  DB_MODEL_CREATE:    'db:model:create',
-  DB_MODEL_DELETE:    'db:model:delete',
+  DB_MODEL_UPDATE:    'db:model:update',
+  DB_MODEL_CLEAR_PROVIDER: 'db:model:clear-provider',
+  MODEL_CAPABILITY_GET: 'model:capability:get',
 
   // Window controls (macOS frameless)
   WINDOW_MINIMIZE:    'window:minimize',
   WINDOW_MAXIMIZE:    'window:maximize',
   WINDOW_CLOSE:       'window:close',
-
-  // File System
-  FILE_UPLOAD:        'file:upload',
-  FILE_READ:          'file:read',
-  FILE_INDEX_RAG:     'file:index-rag',
 
   // FS — content workspace
   FS_ENSURE_COURSE:   'fs:ensure-course',
@@ -89,13 +79,49 @@ export const IPC = {
   FS_CREATE_FOLDER:   'fs:create-folder',
   FS_RENAME:          'fs:rename',
   FS_COPY_FILE:       'fs:copy-file',
+  FS_COPY_TO_CLIPBOARD:'fs:copy-to-clipboard',
+  FS_PASTE_CLIPBOARD: 'fs:paste-clipboard',
+  FS_MOVE:            'fs:move',
+  FS_IMPORT_PATHS:    'fs:import-paths',
+  FS_START_DRAG_OUT:  'fs:start-drag-out',
   FS_OPEN_PATH:       'fs:open-path',
+  FS_PICK_FILES:      'fs:pick-files',
   FS_READ_FILE_BINARY:'fs:read-file-binary',
   SHELL_OPEN_URL:     'shell:open-url',
 
-  // RAG
-  RAG_INDEX:          'rag:index',
-  RAG_RETRIEVE:       'rag:retrieve',
+  // App updates (semi-automatic: check version → notify → open download page)
+  UPDATE_CHECK:       'update:check',
+
+  // Source library
+  SOURCE_LIST:        'source:list',
+  SOURCE_IMPORT_URL:  'source:import-url',
+  SOURCE_IMPORT_TEXT: 'source:import-text',
+  SOURCE_IMPORT_FILE: 'source:import-file',
+  SOURCE_RESOLVE:     'source:resolve',
+  SOURCE_UPDATE:      'source:update',
+  SOURCE_DELETE:      'source:delete',
+  SOURCE_SEARCH:      'source:search',
+  SOURCE_STATS:       'source:stats',
+  SOURCE_REINDEX:     'source:reindex',
+  SOURCE_EXERCISES:   'source:exercises',
+  SOURCE_EXERCISE_REEXTRACT: 'source:exercise:reextract',
+  SOURCE_EXERCISE_UPDATE:    'source:exercise:update',
+  SOURCE_SEMANTIC_PROFILE_REBUILD: 'source:semantic-profile:rebuild',
+  SOURCE_LINK_CANDIDATES: 'source-link:candidates',
+  SOURCE_LINK_ADD:        'source-link:add',
+  SOURCE_LINK_UPDATE:     'source-link:update',
+  SOURCE_LINK_REMOVE:     'source-link:remove',
+
+  // Storage management
+  STORAGE_STATS:              'storage:stats',
+  STORAGE_CLEANUP_ORPHANS:    'storage:cleanup-orphans',
+  STORAGE_CLEAR_OCR_CACHE:    'storage:clear-ocr-cache',
+  STORAGE_CLEAR_RUNTIME_CACHE:'storage:clear-runtime-cache',
+  YTDLP_STATUS:              'ytdlp:status',
+  YTDLP_INSTALL:             'ytdlp:install',
+  WHISPER_STATUS:            'whisper:status',
+  WHISPER_INSTALL:           'whisper:install',
+  FFMPEG_STATUS:             'ffmpeg:status',
 
   // Settings
   SETTINGS_GET:        'settings:get',
@@ -113,19 +139,16 @@ export const IPC = {
 
   // Outline version management
   OUTLINE_GET_STATUS:       'outline:get-status',
-  OUTLINE_GENERATE_NEXT:    'outline:generate-next',
-
-  // Topic (专题) generation
-  TOPIC_GENERATE:           'topic:generate',
 
   // Provider model auto-fetch
   PROVIDER_FETCH_MODELS: 'provider:fetch-models',
 
   // DAG events (main → renderer push)
-  DAG_GENERATED:      'dag:generated',
+  DAG_GENERATED:         'dag:generated',
 
   // File events (main → renderer push)
   FILE_GENERATED:     'file:generated',
+  FS_CHANGED:         'fs:changed',
 } as const;
 
 export type IpcChannel = (typeof IPC)[keyof typeof IPC];

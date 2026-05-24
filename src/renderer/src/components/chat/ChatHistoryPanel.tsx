@@ -1,5 +1,7 @@
 import React, { useEffect, useRef } from 'react';
 import { Trash2 } from 'lucide-react';
+import { useTranslation } from 'react-i18next';
+import type { TFunction } from 'i18next';
 import type { ChatThread } from '@shared/types';
 
 interface ChatHistoryPanelProps {
@@ -10,16 +12,16 @@ interface ChatHistoryPanelProps {
   onClose: () => void;
 }
 
-function relativeTime(iso: string): string {
+function relativeTime(iso: string, t: TFunction, language: string): string {
   const diff = Date.now() - new Date(iso).getTime();
   const mins  = Math.floor(diff / 60_000);
   const hours = Math.floor(diff / 3_600_000);
   const days  = Math.floor(diff / 86_400_000);
-  if (mins  <  1)  return '刚刚';
-  if (mins  < 60)  return `${mins}分钟前`;
-  if (hours < 24)  return `${hours}小时前`;
-  if (days  <  7)  return `${days}天前`;
-  return new Date(iso).toLocaleDateString('zh-CN', { month: 'numeric', day: 'numeric' });
+  if (mins  <  1)  return t('chat_panel.time_just_now');
+  if (mins  < 60)  return t('chat_panel.time_minutes_ago', { count: mins });
+  if (hours < 24)  return t('chat_panel.time_hours_ago', { count: hours });
+  if (days  <  7)  return t('chat_panel.time_days_ago', { count: days });
+  return new Date(iso).toLocaleDateString(language.startsWith('en') ? 'en-US' : 'zh-CN', { month: 'numeric', day: 'numeric' });
 }
 
 export const ChatHistoryPanel: React.FC<ChatHistoryPanelProps> = ({
@@ -29,6 +31,7 @@ export const ChatHistoryPanel: React.FC<ChatHistoryPanelProps> = ({
   onDelete,
   onClose,
 }) => {
+  const { t, i18n } = useTranslation();
   const ref = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -43,6 +46,7 @@ export const ChatHistoryPanel: React.FC<ChatHistoryPanelProps> = ({
 
   return (
     <div
+      className="ui-menu-pop"
       ref={ref}
       style={{
         position: 'absolute',
@@ -57,6 +61,7 @@ export const ChatHistoryPanel: React.FC<ChatHistoryPanelProps> = ({
         maxHeight: 320,
         overflowY: 'auto',
         padding: '4px 0',
+        transformOrigin: 'top right',
       }}
     >
       {threads.length === 0 ? (
@@ -64,15 +69,16 @@ export const ChatHistoryPanel: React.FC<ChatHistoryPanelProps> = ({
           padding: '20px 16px', textAlign: 'center',
           fontSize: 12, color: 'var(--text3)',
         }}>
-          暂无对话记录
+          {t('chat_panel.history_empty')}
         </div>
       ) : (
-        threads.map((t) => {
-          const isActive = t.id === activeThreadId;
+        threads.map((thread) => {
+          const isActive = thread.id === activeThreadId;
           return (
             <div
-              key={t.id}
-              onClick={() => { onSelect(t.id); onClose(); }}
+              className="ui-pressable"
+              key={thread.id}
+              onClick={() => { onSelect(thread.id); onClose(); }}
               style={{
                 display: 'flex', alignItems: 'center', gap: 8,
                 padding: '8px 12px',
@@ -94,16 +100,17 @@ export const ChatHistoryPanel: React.FC<ChatHistoryPanelProps> = ({
                   overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
                   fontWeight: isActive ? 600 : 400,
                 }}>
-                  {t.title}
+                  {thread.title}
                 </div>
                 <div style={{ fontSize: 11, color: 'var(--text3)', marginTop: 2 }}>
-                  {relativeTime(t.updatedAt)}
+                  {relativeTime(thread.updatedAt, t, i18n.language)}
                 </div>
               </div>
 
               <button
-                onClick={(e) => { e.stopPropagation(); onDelete(t.id); }}
-                title="删除对话"
+                className="ui-pressable"
+                onClick={(e) => { e.stopPropagation(); onDelete(thread.id); }}
+                title={t('chat_panel.delete_thread')}
                 style={{
                   flexShrink: 0, width: 24, height: 24,
                   display: 'flex', alignItems: 'center', justifyContent: 'center',

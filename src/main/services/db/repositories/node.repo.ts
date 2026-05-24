@@ -24,7 +24,6 @@ interface DagNodeRow {
   description: string | null;
   node_type: string;
   status: string;
-  hours_est: number;
   difficulty: string;
   prerequisites: string;
   required_tools: string;
@@ -34,6 +33,8 @@ interface DagNodeRow {
   bloom_target: string | null;
   learning_type: string | null;
   priority: string | null;
+  source_ids: string | null;
+  rationale: string | null;
   created_at: string;
   updated_at: string;
 }
@@ -58,6 +59,8 @@ function rowToNode(row: DagNodeRow): DagNode {
     prerequisites: JSON.parse(row.prerequisites) as string[],
     required_tools: JSON.parse(row.required_tools) as string[],
     required_cost: JSON.parse(row.required_cost) as RequiredCost,
+    source_ids: JSON.parse(row.source_ids ?? '[]') as string[],
+    rationale: row.rationale ?? null,
   };
 }
 
@@ -86,16 +89,18 @@ export class NodeRepository {
       .prepare(
         `INSERT INTO dag_nodes (
            id, course_id, chapter, chapter_order, name, description,
-           node_type, status, hours_est, difficulty,
+           node_type, status, difficulty,
            prerequisites, required_tools, required_cost,
            position_x, position_y,
-           bloom_target, learning_type, priority
+           bloom_target, learning_type, priority,
+           source_ids, rationale
          ) VALUES (
            @id, @course_id, @chapter, @chapter_order, @name, @description,
-           @node_type, @status, @hours_est, @difficulty,
+           @node_type, @status, @difficulty,
            @prerequisites, @required_tools, @required_cost,
            @position_x, @position_y,
-           @bloom_target, @learning_type, @priority
+           @bloom_target, @learning_type, @priority,
+           @source_ids, @rationale
          )`
       )
       .run({
@@ -107,7 +112,6 @@ export class NodeRepository {
         description:    data.description ?? null,
         node_type:      data.node_type ?? 'main',
         status:         data.status ?? 'locked',
-        hours_est:      data.hours_est ?? 1.0,
         difficulty:     data.difficulty ?? 'beginner',
         prerequisites:  JSON.stringify(data.prerequisites ?? []),
         required_tools: JSON.stringify(data.required_tools ?? []),
@@ -117,6 +121,8 @@ export class NodeRepository {
         bloom_target:   data.bloom_target  ?? null,
         learning_type:  data.learning_type ?? null,
         priority:       data.priority      ?? null,
+        source_ids:     JSON.stringify(data.source_ids ?? []),
+        rationale:      data.rationale     ?? null,
       });
     return this.findById(id)!;
   }
@@ -135,7 +141,6 @@ export class NodeRepository {
            description = @description,
            node_type = @node_type,
            status = @status,
-           hours_est = @hours_est,
            difficulty = @difficulty,
            prerequisites = @prerequisites,
            required_tools = @required_tools,
@@ -145,6 +150,8 @@ export class NodeRepository {
            bloom_target = @bloom_target,
            learning_type = @learning_type,
            priority = @priority,
+           source_ids = @source_ids,
+           rationale = @rationale,
            updated_at = datetime('now')
          WHERE id = @id`
       )
@@ -156,7 +163,6 @@ export class NodeRepository {
         description:    merged.description,
         node_type:      merged.node_type,
         status:         merged.status,
-        hours_est:      merged.hours_est,
         difficulty:     merged.difficulty,
         prerequisites:  JSON.stringify(merged.prerequisites),
         required_tools: JSON.stringify(merged.required_tools),
@@ -166,6 +172,8 @@ export class NodeRepository {
         bloom_target:   merged.bloom_target  ?? null,
         learning_type:  merged.learning_type ?? null,
         priority:       merged.priority      ?? null,
+        source_ids:     JSON.stringify(merged.source_ids ?? []),
+        rationale:      merged.rationale     ?? null,
       });
     return this.findById(id)!;
   }

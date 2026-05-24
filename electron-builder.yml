@@ -1,5 +1,11 @@
 appId: com.ulyzer.app
 productName: Ulyzer
+# Releases go to GitHub Releases; the in-app updater reads the latest tag from
+# there and prompts the user to open the download page (semi-automatic update).
+publish:
+  provider: github
+  owner: seethith
+  repo: Ulyzer
 directories:
   buildResources: build
 files:
@@ -19,6 +25,11 @@ nsis:
   uninstallDisplayName: ${productName}
   createDesktopShortcut: always
 mac:
+  # Precompiled Swift OCR/PDF binaries (built by `npm run build:swift`), shipped to
+  # <App>/Contents/Resources/swift/bin so users need no Xcode Command Line Tools.
+  extraResources:
+    - from: resources/swift/bin
+      to: swift/bin
   entitlementsInherit: build/entitlements.mac.plist
   extendInfo:
     - NSCameraUsageDescription: Application requests access to the device's camera.

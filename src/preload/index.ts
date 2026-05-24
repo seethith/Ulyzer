@@ -1,4 +1,4 @@
-import { contextBridge, ipcRenderer } from 'electron';
+import { contextBridge, ipcRenderer, webUtils } from 'electron';
 import type { IpcRendererEvent } from 'electron';
 import { IPC } from '../../shared/ipc-channels';
 import type { IpcChannel } from '../../shared/ipc-channels';
@@ -39,6 +39,10 @@ const api = {
     return ipcRenderer.invoke(channel, ...args);
   },
 
+  startFileDrag(filePaths: string[]): void {
+    ipcRenderer.send(IPC.FS_START_DRAG_OUT, filePaths);
+  },
+
   on(channel: IpcChannel, callback: Listener): void {
     assertAllowed(channel);
     ensureChannelListener(channel);
@@ -48,6 +52,10 @@ const api = {
   off(channel: IpcChannel, callback: Listener): void {
     assertAllowed(channel);
     channelSubscribers.get(channel)?.delete(callback);
+  },
+
+  getPathForFile(file: File): string {
+    return webUtils.getPathForFile(file);
   },
 };
 

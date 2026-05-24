@@ -5,6 +5,7 @@ import type { TokenUsage } from '@shared/types';
 interface OllamaChunk {
   message?: { content?: string };
   done: boolean;
+  done_reason?: string;
   prompt_eval_count?: number;
   eval_count?: number;
 }
@@ -46,6 +47,7 @@ export class OllamaProvider implements ILLMProvider {
     const decoder = new TextDecoder();
     let inputTokens = 0;
     let outputTokens = 0;
+    let finishReason = 'stop';
 
     try {
       while (true) {
@@ -62,6 +64,7 @@ export class OllamaProvider implements ILLMProvider {
             if (chunk.done) {
               inputTokens = chunk.prompt_eval_count ?? 0;
               outputTokens = chunk.eval_count ?? 0;
+              finishReason = chunk.done_reason ?? finishReason;
             }
           } catch {
             // ignore malformed JSON lines
@@ -74,6 +77,7 @@ export class OllamaProvider implements ILLMProvider {
 
     if (!options.signal?.aborted) {
       const usage: TokenUsage = { inputTokens, outputTokens, costCny: 0 };
+      options.onStop?.(finishReason === 'length' ? 'max_tokens' : 'end_turn');
       options.onComplete(usage);
     }
   }

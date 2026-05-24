@@ -1,24 +1,15 @@
 import { app } from 'electron';
 import * as path from 'path';
 import * as fs from 'fs';
-import type { FsEntry } from '@shared/types';
+import type { FolderKey, FsEntry } from '@shared/types';
 import { getDb } from '../db/sqlite';
-
-const NODE_SUBFOLDERS_ZH = ['纲要', '原理资料', '实践资料', '参考答案', '个人笔记', '费曼复盘'];
-const NODE_SUBFOLDERS_EN = ['Outline', 'Theory', 'Practice', 'Answer', 'Notes', 'Feynman Review'];
-
-/** Full folder key → on-disk name maps (zh and en). */
-const FOLDER_MAP_ZH: Record<string, string> = {
-  theory: '原理资料', practice: '实践资料', answer: '参考答案', notes: '个人笔记',
-  outline: '纲要', feynman: '费曼复盘',
-};
-const FOLDER_MAP_EN: Record<string, string> = {
-  theory: 'Theory', practice: 'Practice', answer: 'Answer', notes: 'Notes',
-  outline: 'Outline', feynman: 'Feynman Review',
-};
-
-/** @deprecated Use getFolderPath — kept for direct Chinese-name callers */
-export const GENERATE_FOLDER_MAP = FOLDER_MAP_ZH;
+import {
+  detectFolderLanguageFromNames,
+  getFolderNameMap,
+  getFolderSortLocale,
+  getNodeSubfolderNames,
+  getOutlineFolderName,
+} from '../agent-i18n/folder-policy';
 
 /**
  * Auto-detect whether a node's workspace was created in English or Chinese
@@ -26,8 +17,14 @@ export const GENERATE_FOLDER_MAP = FOLDER_MAP_ZH;
  */
 function detectNodeFolderLanguage(courseId: string, nodeId: string): 'zh' | 'en' {
   const nodeDir = getNodeDir(courseId, nodeId);
-  if (fs.existsSync(path.join(nodeDir, 'Outline'))) return 'en';
-  return 'zh';
+  try {
+    const folderNames = fs.readdirSync(nodeDir, { withFileTypes: true })
+      .filter((entry) => entry.isDirectory())
+      .map((entry) => entry.name);
+    return detectFolderLanguageFromNames(folderNames);
+  } catch {
+    return 'zh';
+  }
 }
 
 // ── Name helpers ──────────────────────────────────────────────────────────────
@@ -122,11 +119,10 @@ export function getNodeDir(courseId: string, nodeId: string): string {
   return newPath;
 }
 
-export function getFolderPath(courseId: string, nodeId: string, folderName: string): string {
+export function getFolderPath(courseId: string, nodeId: string, folderKey: FolderKey): string {
   // Auto-detect node's folder language from disk so old (zh) and new (en) nodes both resolve correctly.
   const lang = detectNodeFolderLanguage(courseId, nodeId);
-  const map  = lang === 'en' ? FOLDER_MAP_EN : FOLDER_MAP_ZH;
-  const dirName = map[folderName] ?? folderName;
+  const dirName = getFolderNameMap(lang)[folderKey];
   return path.join(getNodeDir(courseId, nodeId), dirName);
 }
 
@@ -138,8 +134,10 @@ export function ensureCourseDir(courseId: string): void {
 
 export function ensureNodeDir(courseId: string, nodeId: string, language?: string): void {
   const dir = getNodeDir(courseId, nodeId);
+  const existedBefore = fs.existsSync(dir);
   fs.mkdirSync(dir, { recursive: true });
-  const subfolders = language === 'en' ? NODE_SUBFOLDERS_EN : NODE_SUBFOLDERS_ZH;
+  if (existedBefore) return;
+  const subfolders = getNodeSubfolderNames(language);
   for (const sub of subfolders) {
     fs.mkdirSync(path.join(dir, sub), { recursive: true });
   }
@@ -150,7 +148,7 @@ export function ensureNodeDir(courseId: string, nodeId: string, language?: strin
 /** Returns the outline subfolder path for a node (auto-detects zh/en from disk). */
 export function getOutlineDirPath(courseId: string, nodeId: string): string {
   const lang = detectNodeFolderLanguage(courseId, nodeId);
-  return path.join(getNodeDir(courseId, nodeId), lang === 'en' ? 'Outline' : '纲要');
+  return path.join(getNodeDir(courseId, nodeId), getOutlineFolderName(lang));
 }
 
 /**
@@ -173,11 +171,13 @@ export function getLatestOutlinePath(courseId: string, nodeId: string): string |
   // under the human-readable name while the current lookup returned the UUID (or vice
   // versa), try the UUID-keyed path under the course directory as a last resort.
   try {
-    const uuidDir = path.join(getCourseDir(courseId), nodeId, '纲要');
-    if (uuidDir !== dir) {
-      for (const v of ['v3', 'v2', 'v1'] as const) {
-        const p = path.join(uuidDir, `_outline_${v}.md`);
-        if (fs.existsSync(p)) return p;
+    for (const outlineFolderName of [getOutlineFolderName('zh'), getOutlineFolderName('en')]) {
+      const uuidDir = path.join(getCourseDir(courseId), nodeId, outlineFolderName);
+      if (uuidDir !== dir) {
+        for (const v of ['v3', 'v2', 'v1'] as const) {
+          const p = path.join(uuidDir, `_outline_${v}.md`);
+          if (fs.existsSync(p)) return p;
+        }
       }
     }
   } catch { /* ignore */ }
@@ -208,7 +208,7 @@ function buildTree(dirPath: string, baseName: string): FsEntry {
   } catch { /* ignore */ }
   children.sort((a, b) => {
     if (a.type !== b.type) return a.type === 'folder' ? -1 : 1;
-    return a.name.localeCompare(b.name, 'zh');
+    return a.name.localeCompare(b.name, getFolderSortLocale());
   });
   return { name: baseName, path: dirPath, type: 'folder', children };
 }
@@ -218,21 +218,29 @@ export function listNodeTree(courseId: string, nodeId: string): FsEntry {
   const nodeName = getNodeFolderName(nodeId);
   const root: FsEntry = { name: nodeName, path: nodeDir, type: 'folder', children: [] };
 
-  // Protected subfolders always appear first, in canonical order (auto-detect zh vs en)
+  // Existing standard subfolders appear first, in canonical order (auto-detect zh vs en).
+  // Missing standard folders are not synthesized here: users may rename/delete them in the explorer.
   const lang = detectNodeFolderLanguage(courseId, nodeId);
-  const subfolders = lang === 'en' ? NODE_SUBFOLDERS_EN : NODE_SUBFOLDERS_ZH;
-  const protectedNames = new Set(subfolders);
+  const subfolders = getNodeSubfolderNames(lang);
+  const listedStandardNames = new Set<string>();
   for (const sub of subfolders) {
-    root.children!.push(buildTree(path.join(nodeDir, sub), sub));
+    const subPath = path.join(nodeDir, sub);
+    try {
+      if (!fs.statSync(subPath).isDirectory()) continue;
+      root.children!.push(buildTree(subPath, sub));
+      listedStandardNames.add(sub);
+    } catch {
+      // The user may have deleted or renamed this standard folder.
+    }
   }
 
   // Any additional files/folders created directly in the node root also appear
   try {
     const extras = fs.readdirSync(nodeDir, { withFileTypes: true })
-      .filter((item) => !protectedNames.has(item.name))
+      .filter((item) => !listedStandardNames.has(item.name))
       .sort((a, b) => {
         if (a.isDirectory() !== b.isDirectory()) return a.isDirectory() ? -1 : 1;
-        return a.name.localeCompare(b.name, 'zh');
+        return a.name.localeCompare(b.name, getFolderSortLocale(lang));
       });
     for (const item of extras) {
       const itemPath = path.join(nodeDir, item.name);
@@ -279,7 +287,7 @@ export function writeFileContent(filePath: string, content: string): void {
   fs.writeFileSync(filePath, content, 'utf-8');
 }
 
-export function deleteFileFs(filePath: string): void {
+export function deleteFileFsResult(filePath: string): { success: boolean; error?: string } {
   try {
     const stat = fs.statSync(filePath);
     if (stat.isDirectory()) {
@@ -287,42 +295,170 @@ export function deleteFileFs(filePath: string): void {
     } else {
       fs.unlinkSync(filePath);
     }
-  } catch { /* ignore */ }
+    return { success: true };
+  } catch (error) {
+    const message = error instanceof Error ? error.message : String(error);
+    return { success: false, error: message };
+  }
+}
+
+function assertExists(targetPath: string, label = '项目'): void {
+  if (!fs.existsSync(targetPath)) {
+    throw new Error(`${label}不存在：${path.basename(targetPath)}`);
+  }
+}
+
+function assertTargetAvailable(targetPath: string): void {
+  if (fs.existsSync(targetPath)) {
+    throw new Error(`目标位置已存在同名文件或文件夹：${path.basename(targetPath)}`);
+  }
+}
+
+function assertDirectory(targetPath: string, label = '目标文件夹'): void {
+  assertExists(targetPath, label);
+  if (!fs.statSync(targetPath).isDirectory()) {
+    throw new Error(`${label}不是文件夹：${path.basename(targetPath)}`);
+  }
+}
+
+function normalizePathForCompare(targetPath: string): string {
+  return path.resolve(targetPath);
+}
+
+function isSameOrDescendant(parentPath: string, candidatePath: string): boolean {
+  const parent = normalizePathForCompare(parentPath);
+  const candidate = normalizePathForCompare(candidatePath);
+  return candidate === parent || candidate.startsWith(parent + path.sep);
+}
+
+function nextCopyTargetPath(srcPath: string, destDir: string): string {
+  const name = path.basename(srcPath);
+  const ext = fs.statSync(srcPath).isDirectory() ? '' : path.extname(name);
+  const base = ext ? path.basename(name, ext) : name;
+  for (let index = 1; index < 1000; index += 1) {
+    const suffix = index === 1 ? '_副本' : `_副本${index}`;
+    const candidate = path.join(destDir, `${base}${suffix}${ext}`);
+    if (!fs.existsSync(candidate)) return candidate;
+  }
+  throw new Error(`无法创建副本：${name} 的副本数量过多`);
+}
+
+function nextImportTargetPath(srcPath: string, destDir: string): string {
+  const name = path.basename(srcPath);
+  const original = path.join(destDir, name);
+  if (!fs.existsSync(original)) return original;
+
+  const ext = fs.statSync(srcPath).isDirectory() ? '' : path.extname(name);
+  const base = ext ? path.basename(name, ext) : name;
+  for (let index = 1; index < 1000; index += 1) {
+    const suffix = index === 1 ? '_导入' : `_导入${index}`;
+    const candidate = path.join(destDir, `${base}${suffix}${ext}`);
+    if (!fs.existsSync(candidate)) return candidate;
+  }
+  throw new Error(`无法导入：${name} 的同名文件过多`);
+}
+
+function nextClipboardPasteTargetPath(srcPath: string, destDir: string): string {
+  const name = path.basename(srcPath);
+  const original = path.join(destDir, name);
+  if (!fs.existsSync(original)) return original;
+
+  const ext = fs.statSync(srcPath).isDirectory() ? '' : path.extname(name);
+  const base = ext ? path.basename(name, ext) : name;
+  for (let index = 1; index < 1000; index += 1) {
+    const suffix = index === 1 ? '_副本' : `_副本${index}`;
+    const candidate = path.join(destDir, `${base}${suffix}${ext}`);
+    if (!fs.existsSync(candidate)) return candidate;
+  }
+  throw new Error(`无法粘贴：${name} 的副本数量过多`);
 }
 
 export function createFile(filePath: string): void {
   fs.mkdirSync(path.dirname(filePath), { recursive: true });
-  if (!fs.existsSync(filePath)) {
-    fs.writeFileSync(filePath, '', 'utf-8');
-  }
+  assertTargetAvailable(filePath);
+  fs.writeFileSync(filePath, '', 'utf-8');
 }
 
 export function createFolder(folderPath: string): void {
+  assertTargetAvailable(folderPath);
   fs.mkdirSync(folderPath, { recursive: true });
 }
 
 export function renameItem(oldPath: string, newName: string): string {
+  assertExists(oldPath);
   const dir = path.dirname(oldPath);
   const newPath = path.join(dir, newName);
+  if (normalizePathForCompare(oldPath) === normalizePathForCompare(newPath)) return oldPath;
+  assertTargetAvailable(newPath);
   fs.renameSync(oldPath, newPath);
   return newPath;
 }
 
 export function copyFile(srcPath: string, destDir: string): string {
-  const name = path.basename(srcPath);
-  const ext = path.extname(name);
-  const base = path.basename(name, ext);
-  const destPath = path.join(destDir, `${base}_副本${ext}`);
-  fs.copyFileSync(srcPath, destPath);
+  assertExists(srcPath, '源项目');
+  assertDirectory(destDir);
+  const destPath = nextCopyTargetPath(srcPath, destDir);
+  if (fs.statSync(srcPath).isDirectory()) {
+    if (isSameOrDescendant(srcPath, destDir)) {
+      throw new Error('不能把文件夹复制到它自己或它的子文件夹中');
+    }
+    fs.cpSync(srcPath, destPath, { recursive: true, errorOnExist: true, force: false });
+  } else {
+    fs.copyFileSync(srcPath, destPath, fs.constants.COPYFILE_EXCL);
+  }
   return destPath;
 }
 
-export function generateFileName(userMessage: string): string {
-  const ts = new Date().toISOString().replace(/[:.]/g, '-').slice(0, 16);
-  const slug = userMessage
-    .slice(0, 20)
-    .replace(/[/\\?%*:|"<>]/g, '')
-    .replace(/\s+/g, '-')
-    .trim();
-  return `${ts}-${slug || 'note'}.md`;
+export function importPaths(srcPaths: string[], destDir: string): string[] {
+  assertDirectory(destDir);
+  const imported: string[] = [];
+  for (const srcPath of srcPaths) {
+    assertExists(srcPath, '源项目');
+    const destPath = nextImportTargetPath(srcPath, destDir);
+    if (fs.statSync(srcPath).isDirectory()) {
+      if (isSameOrDescendant(srcPath, destDir)) {
+        throw new Error('不能把文件夹导入到它自己或它的子文件夹中');
+      }
+      fs.cpSync(srcPath, destPath, { recursive: true, errorOnExist: true, force: false });
+    } else {
+      fs.copyFileSync(srcPath, destPath, fs.constants.COPYFILE_EXCL);
+    }
+    imported.push(destPath);
+  }
+  return imported;
 }
+
+export function copyPathsToDirectory(srcPaths: string[], destDir: string): string[] {
+  assertDirectory(destDir);
+  const copied: string[] = [];
+  for (const srcPath of srcPaths) {
+    assertExists(srcPath, '源项目');
+    const destPath = nextClipboardPasteTargetPath(srcPath, destDir);
+    if (fs.statSync(srcPath).isDirectory()) {
+      if (isSameOrDescendant(srcPath, destDir)) {
+        throw new Error('不能把文件夹粘贴到它自己或它的子文件夹中');
+      }
+      fs.cpSync(srcPath, destPath, { recursive: true, errorOnExist: true, force: false });
+    } else {
+      fs.copyFileSync(srcPath, destPath, fs.constants.COPYFILE_EXCL);
+    }
+    copied.push(destPath);
+  }
+  return copied;
+}
+
+export function moveItem(srcPath: string, destDir: string): string {
+  assertExists(srcPath, '源项目');
+  assertDirectory(destDir);
+  if (isSameOrDescendant(srcPath, destDir)) {
+    throw new Error('不能把文件夹移动到它自己或它的子文件夹中');
+  }
+  const currentParent = normalizePathForCompare(path.dirname(srcPath));
+  const targetParent = normalizePathForCompare(destDir);
+  if (currentParent === targetParent) return srcPath;
+  const destPath = path.join(destDir, path.basename(srcPath));
+  assertTargetAvailable(destPath);
+  fs.renameSync(srcPath, destPath);
+  return destPath;
+}
+

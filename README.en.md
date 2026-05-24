@@ -2,6 +2,10 @@
 
 [中文](README.md) | [English](README.en.md)
 
+[![CI](https://github.com/seethith/Ulyzer/actions/workflows/ci.yml/badge.svg)](https://github.com/seethith/Ulyzer/actions/workflows/ci.yml)
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
+![Platform](https://img.shields.io/badge/platform-macOS%20%7C%20Windows%20%7C%20Linux-lightgrey)
+
 **An AI-powered personal knowledge graph learning tool.** Ulyzer turns any learning goal into a DAG-based roadmap, then helps you learn node by node with AI tutors, generated materials, practice, and review.
 
 > 🚧 In development · macOS first · Stars and feedback are welcome
@@ -59,6 +63,21 @@ npm run build:linux
 
 ---
 
+## Releasing (maintainers)
+
+The app ships a **semi-automatic updater**: on startup (and via Settings → "Check for updates") it reads the latest version from this repo's GitHub Releases, compares it to the running version, and — if a newer one exists — shows a top banner asking whether to download. Clicking opens the Release page in the system browser (no auto-download/install, so no code signing is required).
+
+To cut a release:
+
+1. **Bump the version** in `package.json` (e.g. `0.1.0-alpha → 0.2.0`, following [semver](https://semver.org)).
+2. **Build** with `npm run build:mac` / `build:win` / `build:linux` (artifacts land in `release/`).
+3. **Create a GitHub Release** tagged `v0.2.0` (keep the `v` prefix), attach the `.dmg`/`.exe` installers, write release notes, and mark alpha/beta builds as **pre-release**.
+   - Shortcut: with a `GH_TOKEN` env var set, run `npx electron-builder --publish always` to create the Release and upload artifacts automatically (`publish: github` is already configured in `electron-builder.yml`).
+
+> The updater receives pre-releases by default (the app is in alpha); users can turn this off under Settings → About.
+
+---
+
 ## Configure API Keys
 
 After launching Ulyzer, open **Settings → Model** and add the API key for the provider you want to use.
@@ -88,13 +107,30 @@ When you use cloud model providers or web search, relevant prompts, attachment s
 
 ---
 
-## Sponsorship
+## Tech Stack
 
-If this project helps you, sponsorship is welcome:
+Built on the shoulders of these excellent open-source projects:
 
-<!-- Sponsor QR placeholder
-![Sponsor QR](docs/sponsor.png)
--->
+- **Desktop**: Electron · electron-vite
+- **Frontend**: React · TypeScript · Tailwind CSS · Zustand · React Router
+- **Editor / canvas**: CodeMirror · Monaco Editor · React Flow
+- **Content rendering**: marked · highlight.js · KaTeX · Mermaid · DOMPurify
+- **Document extraction**: Mozilla Readability · mammoth · pdf-parse
+- **Data / storage**: better-sqlite3 (SQLite FTS5 full-text search) · keytar
+- **Models / i18n**: Anthropic SDK · OpenAI SDK · tiktoken · i18next
+
+The UI font is [Noto Sans SC](https://fonts.google.com/noto/specimen/Noto+Sans+SC), icons are from [Lucide](https://lucide.dev). PDF/image OCR is built in; optional features like video subtitles and local speech-to-text can be installed in one click under Settings → Advanced (see [External Tools](docs/EXTERNAL-TOOLS.md)).
+
+---
+
+## Maintenance & Support
+
+Ulyzer is a personal, best-effort open-source project — no guaranteed response time:
+
+- **Bug reports**: welcome via [Issues](https://github.com/seethith/Ulyzer/issues); include OS, version, and steps to reproduce.
+- **Feature requests**: discussion welcome, but no promise of implementation or timeline.
+- **Pull requests**: welcome — please open an issue to discuss direction first; merge is at the maintainer's discretion.
+- **Security issues**: please do **not** open a public issue; report privately per [SECURITY.md](SECURITY.md).
 
 ---
 

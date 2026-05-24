@@ -4,7 +4,7 @@ import { X } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import { useCourseStore } from '../../stores/course.store';
 import { useAppStore } from '../../stores/app.store';
-import type { Course, DepthPreference } from '@shared/types';
+import type { Course } from '@shared/types';
 
 interface CourseInfoModalProps {
   isOpen: boolean;
@@ -13,13 +13,10 @@ interface CourseInfoModalProps {
   course?: Course | null;
 }
 
-const DEPTH_VALUES: DepthPreference[] = ['quick', 'standard', 'deep'];
-
 interface ProfileState {
   goal_text: string;
   known_topics: string;
   time_budget: string;
-  depth_preference: DepthPreference | '';
 }
 
 export const CourseInfoModal: React.FC<CourseInfoModalProps> = ({ isOpen, onClose, course }) => {
@@ -33,7 +30,7 @@ export const CourseInfoModal: React.FC<CourseInfoModalProps> = ({ isOpen, onClos
 
   const [name,    setName]    = useState('');
   const [profile, setProfile] = useState<ProfileState>({
-    goal_text: '', known_topics: '', time_budget: '', depth_preference: '',
+    goal_text: '', known_topics: '', time_budget: '',
   });
   const [loading, setLoading] = useState(false);
   const [error,   setError]   = useState('');
@@ -43,10 +40,9 @@ export const CourseInfoModal: React.FC<CourseInfoModalProps> = ({ isOpen, onClos
     if (isOpen) {
       setName(course?.name ?? '');
       setProfile({
-        goal_text:        course?.goal_text        ?? '',
-        known_topics:     course?.known_topics      ?? '',
-        time_budget:      course?.time_budget       ?? '',
-        depth_preference: course?.depth_preference  ?? '',
+        goal_text:    course?.goal_text    ?? '',
+        known_topics: course?.known_topics ?? '',
+        time_budget:  course?.time_budget  ?? '',
       });
       setError('');
       setLoading(false);
@@ -63,10 +59,9 @@ export const CourseInfoModal: React.FC<CourseInfoModalProps> = ({ isOpen, onClos
     setError('');
     try {
       const profileData = {
-        goal_text:        profile.goal_text.trim()    || null,
-        known_topics:     profile.known_topics.trim() || null,
-        time_budget:      profile.time_budget.trim()  || null,
-        depth_preference: (profile.depth_preference || null) as DepthPreference | null,
+        goal_text:    profile.goal_text.trim()    || null,
+        known_topics: profile.known_topics.trim() || null,
+        time_budget:  profile.time_budget.trim()  || null,
       };
 
       if (isEdit) {
@@ -98,17 +93,19 @@ export const CourseInfoModal: React.FC<CourseInfoModalProps> = ({ isOpen, onClos
     color: 'var(--text)', backgroundColor: 'var(--surface)',
     border: '1px solid var(--border)', borderRadius: 'var(--r)',
     outline: 'none', fontFamily: 'var(--sans)', boxSizing: 'border-box',
+    transition: 'border-color 140ms ease, box-shadow 140ms ease, background-color 140ms ease',
   };
 
   return (
     <div
+      className="ui-animated-backdrop"
       onClick={handleBackdropClick}
       style={{
         position: 'fixed', inset: 0, backgroundColor: 'rgba(0,0,0,0.3)',
         display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000,
       }}
     >
-      <div style={{
+      <div className="ui-animated-modal" style={{
         backgroundColor: 'var(--surface)', border: '1px solid var(--border)',
         borderRadius: 'var(--r2)', padding: 28, width: 400,
         boxShadow: '0 8px 32px rgba(0,0,0,0.12)',
@@ -118,6 +115,7 @@ export const CourseInfoModal: React.FC<CourseInfoModalProps> = ({ isOpen, onClos
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 20 }}>
           <h2 style={{ fontSize: 16, fontWeight: 600, color: 'var(--text)' }}>{t('course_info_modal.title')}</h2>
           <button
+            className="ui-pressable"
             onClick={onClose}
             style={{
               background: 'none', border: 'none', cursor: 'pointer',
@@ -201,45 +199,13 @@ export const CourseInfoModal: React.FC<CourseInfoModalProps> = ({ isOpen, onClos
                 />
               </div>
 
-              {/* depth_preference */}
-              <div>
-                <label style={{ display: 'block', fontSize: 12, color: 'var(--text2)', marginBottom: 6 }}>{t('course_info_modal.depth_label')}</label>
-                <div style={{ display: 'flex', gap: 6 }}>
-                  {DEPTH_VALUES.map((value) => {
-                    const active = profile.depth_preference === value;
-                    return (
-                      <button
-                        key={value}
-                        type="button"
-                        onClick={() => setProfile((p) => ({
-                          ...p,
-                          depth_preference: p.depth_preference === value ? '' : value,
-                        }))}
-                        style={{
-                          flex: 1, padding: '6px 4px', fontSize: 11,
-                          border: `1px solid ${active ? 'var(--accent)' : 'var(--border)'}`,
-                          borderRadius: 'var(--r)',
-                          backgroundColor: active ? 'var(--accent-s, rgba(99,102,241,0.1))' : 'transparent',
-                          color: active ? 'var(--accent)' : 'var(--text2)',
-                          cursor: 'pointer', fontFamily: 'var(--sans)',
-                          display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 2,
-                          transition: 'all 0.1s',
-                        }}
-                      >
-                        <span style={{ fontWeight: active ? 600 : 400 }}>{t(`course_info_modal.depth_${value}` as Parameters<typeof t>[0])}</span>
-                        <span style={{ fontSize: 10, color: active ? 'var(--accent)' : 'var(--text3)' }}>{t(`course_info_modal.depth_${value}_desc` as Parameters<typeof t>[0])}</span>
-                      </button>
-                    );
-                  })}
-                </div>
-              </div>
-
             </div>
           </div>
 
           {/* Actions */}
           <div style={{ display: 'flex', gap: 8, justifyContent: 'flex-end' }}>
             <button
+              className="ui-pressable"
               type="button"
               onClick={onClose}
               disabled={loading}
@@ -252,6 +218,7 @@ export const CourseInfoModal: React.FC<CourseInfoModalProps> = ({ isOpen, onClos
               {t('common.cancel')}
             </button>
             <button
+              className="ui-pressable"
               type="submit"
               disabled={loading || !name.trim()}
               style={{

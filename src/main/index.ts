@@ -1,14 +1,45 @@
-import { app, BrowserWindow, ipcMain } from 'electron';
+import { app, BrowserWindow, ipcMain, shell } from 'electron';
 import { join } from 'path';
 import { electronApp, optimizer, is } from '@electron-toolkit/utils';
 import icon from '../../resources/icon.png?asset';
 import { initDb, closeDb } from './services/db/sqlite';
 import { registerAllHandlers } from './ipc';
 import { migrateAllFolders } from './services/fs/content.service';
+import { refreshStaleModelsDevCapabilityCache } from './services/llm/model-capability-cache';
+import { runStartupMaintenance } from './services/maintenance/startup-maintenance';
 import { IPC } from '../../shared/ipc-channels';
 
+// Set the app name before anything reads it, so the macOS menu bar shows
+// "Ulyzer" (not "Electron") and app.getName()-derived paths are consistent
+// with the packaged build (productName: Ulyzer in electron-builder.yml).
+app.setName('Ulyzer');
+
+let mainWindow: BrowserWindow | null = null;
+let windowControlHandlersRegistered = false;
+
+function getWindowForControl(): BrowserWindow | null {
+  return BrowserWindow.getFocusedWindow() ?? mainWindow;
+}
+
+function registerWindowControlHandlers(): void {
+  if (windowControlHandlersRegistered) return;
+  windowControlHandlersRegistered = true;
+
+  ipcMain.handle(IPC.WINDOW_MINIMIZE, () => {
+    getWindowForControl()?.minimize();
+  });
+  ipcMain.handle(IPC.WINDOW_MAXIMIZE, () => {
+    const window = getWindowForControl();
+    if (!window) return;
+    window.isMaximized() ? window.unmaximize() : window.maximize();
+  });
+  ipcMain.handle(IPC.WINDOW_CLOSE, () => {
+    getWindowForControl()?.close();
+  });
+}
+
 function createWindow(): void {
-  const mainWindow = new BrowserWindow({
+  const window = new BrowserWindow({
     width: 1200,
     height: 800,
     minWidth: 900,
@@ -27,27 +58,44 @@ function createWindow(): void {
       sandbox: false,
     },
   });
+  mainWindow = window;
 
-  mainWindow.on('ready-to-show', () => {
-    mainWindow.show();
+  window.on('ready-to-show', () => {
+    window.show();
   });
 
-  ipcMain.handle(IPC.WINDOW_MINIMIZE, () => mainWindow.minimize());
-  ipcMain.handle(IPC.WINDOW_MAXIMIZE, () => {
-    mainWindow.isMaximized() ? mainWindow.unmaximize() : mainWindow.maximize();
+  window.on('closed', () => {
+    if (mainWindow === window) mainWindow = null;
   });
-  ipcMain.handle(IPC.WINDOW_CLOSE, () => mainWindow.close());
 
-  mainWindow.webContents.setWindowOpenHandler(() => {
+  window.webContents.setWindowOpenHandler(() => {
     // URL opening is handled explicitly via IPC.SHELL_OPEN_URL — deny all
     // new-window requests to prevent unintended Electron windows from opening.
     return { action: 'deny' };
   });
 
+  window.webContents.on('will-navigate', (event, url) => {
+    const currentUrl = window.webContents.getURL();
+    // Same-origin navigation (the app's own page) is allowed; everything else is
+    // blocked. http(s) targets are handed to the OS browser; any other protocol
+    // (file:, data:, javascript:, …) is silently denied.
+    let sameOrigin = false;
+    try {
+      sameOrigin = !!currentUrl && new URL(url).origin === new URL(currentUrl).origin;
+    } catch {
+      sameOrigin = false;
+    }
+    if (sameOrigin) return;
+    event.preventDefault();
+    if (url.startsWith('http://') || url.startsWith('https://')) {
+      void shell.openExternal(url);
+    }
+  });
+
   if (is.dev && process.env['ELECTRON_RENDERER_URL']) {
-    mainWindow.loadURL(process.env['ELECTRON_RENDERER_URL']);
+    window.loadURL(process.env['ELECTRON_RENDERER_URL']);
   } else {
-    mainWindow.loadFile(join(__dirname, '../renderer/index.html'));
+    window.loadFile(join(__dirname, '../renderer/index.html'));
   }
 }
 
@@ -71,6 +119,13 @@ app.whenReady().then(() => {
 
   // Register all IPC handlers
   registerAllHandlers();
+  registerWindowControlHandlers();
+
+  // Local housekeeping: fix interrupted agent runs + prune stale resume state.
+  runStartupMaintenance();
+  void refreshStaleModelsDevCapabilityCache().catch(() => {
+    // Network/cache refresh is best-effort; app startup should not depend on it.
+  });
 
   createWindow();
 

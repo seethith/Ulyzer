@@ -9,7 +9,7 @@
  *   log.info('循环开始', { nodeId, provider, turn: 0 });
  *   log.warn('上下文接近上限', { used: budget.used, limit: budget.limit });
  *   log.error('工具执行失败', { tool: 'save_file', error: err.message });
- *   log.debug('tool result', { chars: result.length }); // only when LEARNOS_DEBUG=1
+ *   log.debug('tool result', { chars: result.length }); // only when ULYZER_DEBUG=1
  */
 
 import * as fs from 'fs';
@@ -37,7 +37,7 @@ function log(level: string, module: string, msg: string, meta?: object): void {
     ...(meta ?? {}),
   };
 
-  if (process.env.NODE_ENV === 'development' || process.env.LEARNOS_DEBUG) {
+  if (process.env.NODE_ENV === 'development' || process.env.ULYZER_DEBUG) {
     // Pretty console output in development
     const metaStr = meta && Object.keys(meta).length > 0 ? ' ' + JSON.stringify(meta) : '';
     console.log(`[${level}] [${module}] ${msg}${metaStr}`);
@@ -56,7 +56,7 @@ export interface Logger {
   info  (msg: string, meta?: object): void;
   warn  (msg: string, meta?: object): void;
   error (msg: string, meta?: object): void;
-  /** Emitted only when LEARNOS_DEBUG=1 */
+  /** Emitted only when ULYZER_DEBUG=1 */
   debug (msg: string, meta?: object): void;
 }
 
@@ -66,7 +66,7 @@ export function createLogger(module: string): Logger {
     warn:  (msg, meta) => log('WARN',  module, msg, meta),
     error: (msg, meta) => log('ERROR', module, msg, meta),
     debug: (msg, meta) => {
-      if (process.env.LEARNOS_DEBUG) log('DEBUG', module, msg, meta);
+      if (process.env.ULYZER_DEBUG) log('DEBUG', module, msg, meta);
     },
   };
 }

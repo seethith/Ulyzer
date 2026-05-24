@@ -1,5 +1,6 @@
 import './lib/monacoSetup'; // must be first — configures Monaco workers before any editor renders
 import './i18n'; // initialise i18next before rendering
+import 'katex/dist/katex.min.css';
 import ReactDOM from 'react-dom/client';
 import App from './App';
 

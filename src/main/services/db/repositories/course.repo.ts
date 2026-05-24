@@ -9,7 +9,6 @@ interface CourseRow {
   status: string;
   total_nodes: number;
   done_nodes: number;
-  total_hours_est: number;
   hours_spent: number;
   total_token_used: number;
   total_cost_cny: number;
@@ -69,7 +68,6 @@ export class CourseRepository {
            status = @status,
            total_nodes = @total_nodes,
            done_nodes = @done_nodes,
-           total_hours_est = @total_hours_est,
            hours_spent = @hours_spent,
            total_token_used = @total_token_used,
            total_cost_cny = @total_cost_cny,

@@ -1,46 +1,48 @@
-import React, { useEffect, useRef, useCallback } from 'react';
-import { Allotment } from 'allotment';
+import React, { useEffect, useRef, useCallback, useState } from 'react';
+import { Allotment, type AllotmentHandle } from 'allotment';
 import 'allotment/dist/style.css';
+import { PanelRightClose, PanelRightOpen } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import { IPC } from '@shared/ipc-channels';
 import type {
-  FileAttachment,
-  DagGraph,
-  StreamChunkPayload,
-  StreamEndPayload,
-  StreamErrorPayload,
-  AgentChatRequest,
-  LLMMessage,
-  LLMProvider,
   ChatMessage,
+  ChatMessageEditPayload,
   ChatThread,
-  TokenUsage,
+  IpcResponse,
 } from '@shared/types';
 import { useAppStore } from '../stores/app.store';
 import { useDAGStore } from '../stores/dag.store';
 import { useChatStore } from '../stores/chat.store';
-import { useSettingsStore } from '../stores/settings.store';
 import { useCourseStore } from '../stores/course.store';
 import { DAGCanvas } from '../components/dag/DAGCanvas';
 import { ChatPanel } from '../components/chat/ChatPanel';
 import type { ChatPanelPreset } from '../components/chat/ChatPanel';
+import { sanitizeAttachmentsForMessage } from '../components/chat/useChatAttachments';
+import { useAgentChatRun, type DagGeneratedPayload } from '../hooks/useAgentChatRun';
+import {
+  animateSplitResize,
+  readLayoutBool,
+  readLayoutSizes,
+  writeLayoutBool,
+  writeLayoutSizes,
+} from '../utils/split-layout';
 
 // ── Preset commands ────────────────────────────────────────────────────────────
 // Defined inside the component so they can use the t() function
 
 // ── DAGPage ────────────────────────────────────────────────────────────────────
 
-interface DagGeneratedPayload {
-  nodes: DagGraph['nodes'];
-  edges: DagGraph['edges'];
-  summary: string;
-  usage: TokenUsage;
-  sessionId: string;
-}
+const DAG_CHAT_VISIBILITY_KEY = 'ulyzer:layout:dag-chat-visible';
+const DAG_CHAT_SIZES_KEY = 'ulyzer:layout:dag-chat-sizes';
+const DAG_CHAT_DEFAULT_SIZES = [60, 40];
+const SIDE_PANEL_EXIT_MS = 170;
+
+const collapseDagChatSizes = (sizes: number[]) => [sizes[0] + sizes[1], 0];
 
 const DAGPage: React.FC = () => {
-  const { t, i18n } = useTranslation();
+  const { t } = useTranslation();
   const setBreadcrumbs = useAppStore((s) => s.setBreadcrumbs);
+  const setTopbarRightAction = useAppStore((s) => s.setTopbarRightAction);
   const courseId       = useAppStore((s) => s.currentCourseId);
   const courseName     = useCourseStore((s) => s.courses.find((c) => c.id === courseId)?.name ?? t('dag_page.breadcrumb_courses'));
 
@@ -51,8 +53,18 @@ const DAGPage: React.FC = () => {
   const streamError      = useChatStore((s) => s.streamError.main_tutor);
   const threads          = useChatStore((s) => s.threads.main_tutor);
   const activeThreadId   = useChatStore((s) => s.activeThreadId.main_tutor);
-
-  const sessionIdRef = useRef(crypto.randomUUID());
+  const [editBusy, setEditBusy] = useState(false);
+  const [chatVisible, setChatVisible] = useState(() => readLayoutBool(DAG_CHAT_VISIBILITY_KEY, true));
+  const dagSplitDefaultSizesRef = useRef(readLayoutSizes(DAG_CHAT_SIZES_KEY, DAG_CHAT_DEFAULT_SIZES, 2));
+  const dagSplitRef = useRef<AllotmentHandle>(null);
+  const dagSplitSizesRef = useRef(
+    chatVisible ? dagSplitDefaultSizesRef.current : collapseDagChatSizes(dagSplitDefaultSizesRef.current),
+  );
+  const stableDagSplitSizesRef = useRef(dagSplitDefaultSizesRef.current);
+  const cancelDagSplitAnimationRef = useRef<(() => void) | null>(null);
+  const [chatPaneVisible, setChatPaneVisible] = useState(chatVisible);
+  const [chatPaneClosing, setChatPaneClosing] = useState(false);
+  const [chatPaneTransitioning, setChatPaneTransitioning] = useState(false);
 
   // ── Breadcrumbs ─────────────────────────────────────────────────────────────
 
@@ -69,51 +81,120 @@ const DAGPage: React.FC = () => {
     ]);
   }, [setBreadcrumbs, courseName, t]);
 
-  // ── Ensure clean state on mount; abort + reset on unmount ───────────────────
+  const persistDagSplitSizes = useCallback((sizes: number[]) => {
+    if (sizes.length !== 2 || sizes[1] < 40) return;
+    stableDagSplitSizesRef.current = sizes;
+    writeLayoutSizes(DAG_CHAT_SIZES_KEY, sizes);
+  }, []);
+
+  const handleDagSplitChange = useCallback((sizes: number[]) => {
+    dagSplitSizesRef.current = sizes;
+  }, []);
+
+  const handleDagSplitDragEnd = useCallback((sizes: number[]) => {
+    if (chatVisible) persistDagSplitSizes(sizes);
+  }, [chatVisible, persistDagSplitSizes]);
+
+  const toggleChatPane = useCallback(() => {
+    cancelDagSplitAnimationRef.current?.();
+    cancelDagSplitAnimationRef.current = null;
+
+    if (chatVisible) {
+      const currentSizes = dagSplitSizesRef.current[1] > 1
+        ? dagSplitSizesRef.current
+        : stableDagSplitSizesRef.current;
+      const collapsedSizes = collapseDagChatSizes(currentSizes);
+      persistDagSplitSizes(currentSizes);
+      setChatVisible(false);
+      writeLayoutBool(DAG_CHAT_VISIBILITY_KEY, false);
+      setChatPaneClosing(true);
+      setChatPaneTransitioning(true);
+      cancelDagSplitAnimationRef.current = animateSplitResize(
+        dagSplitRef,
+        currentSizes,
+        collapsedSizes,
+        SIDE_PANEL_EXIT_MS,
+        (sizes) => { dagSplitSizesRef.current = sizes; },
+        () => {
+          dagSplitSizesRef.current = collapsedSizes;
+          setChatPaneVisible(false);
+          setChatPaneClosing(false);
+          setChatPaneTransitioning(false);
+          cancelDagSplitAnimationRef.current = null;
+        },
+      );
+      return;
+    }
+
+    const targetSizes = stableDagSplitSizesRef.current;
+    const startSizes = dagSplitSizesRef.current[1] <= 1
+      ? dagSplitSizesRef.current
+      : collapseDagChatSizes(targetSizes);
+    setChatPaneVisible(true);
+    setChatPaneClosing(false);
+    setChatPaneTransitioning(true);
+    setChatVisible(true);
+    writeLayoutBool(DAG_CHAT_VISIBILITY_KEY, true);
+    cancelDagSplitAnimationRef.current = animateSplitResize(
+      dagSplitRef,
+      startSizes,
+      targetSizes,
+      SIDE_PANEL_EXIT_MS,
+      (sizes) => { dagSplitSizesRef.current = sizes; },
+      () => {
+        dagSplitSizesRef.current = targetSizes;
+        setChatPaneTransitioning(false);
+        writeLayoutSizes(DAG_CHAT_SIZES_KEY, targetSizes);
+        cancelDagSplitAnimationRef.current = null;
+      },
+    );
+  }, [chatVisible, persistDagSplitSizes]);
 
   useEffect(() => {
-    // Reset any stale streaming state left over from a previous mount
-    useChatStore.getState().setStreaming(false);
-    useDAGStore.getState().setGenerating(false);
+    if (!chatPaneVisible && !chatVisible) {
+      const collapsedSizes = collapseDagChatSizes(stableDagSplitSizesRef.current);
+      dagSplitSizesRef.current = collapsedSizes;
+      window.requestAnimationFrame(() => dagSplitRef.current?.resize(collapsedSizes));
+    }
+  }, [chatPaneVisible, chatVisible]);
 
-    return () => {
-      // Commit any partial streaming content before aborting so it isn't lost
-      const sid = sessionIdRef.current;
-      sessionIdRef.current = crypto.randomUUID();
-      const abortedMsg = useChatStore.getState().finalizeWithAbort();
-      // Persist the aborted message to DB so it survives page navigation
-      if (abortedMsg) {
-        const cid = useAppStore.getState().currentCourseId;
-        const tid = useChatStore.getState().activeThreadId.main_tutor;
-        if (cid) {
-          window.api.invoke(IPC.DB_MESSAGE_CREATE, {
-            id: abortedMsg.id, courseId: cid, role: 'assistant', content: abortedMsg.content,
-            agent: 'main_tutor', threadId: tid ?? undefined,
-          }).catch(() => {/* ignore */});
-        }
-      }
-      useDAGStore.getState().setGenerating(false);
-      window.api.invoke(IPC.LLM_ABORT, sid).catch(() => {/* ignore */});
-    };
-  }, []);  
+  useEffect(() => () => {
+    cancelDagSplitAnimationRef.current?.();
+  }, []);
+
+  useEffect(() => {
+    setTopbarRightAction({
+      label: chatVisible ? t('layout.hide_ai_panel') : t('layout.show_ai_panel'),
+      icon: chatVisible ? <PanelRightClose size={13} /> : <PanelRightOpen size={13} />,
+      onClick: toggleChatPane,
+    });
+    return () => setTopbarRightAction(null);
+  }, [chatVisible, setTopbarRightAction, t, toggleChatPane]);
+
+  // ── Ensure clean page-specific state on mount ───────────────────────────────
+
+  useEffect(() => {
+    useDAGStore.getState().setGenerating(false);
+  }, []);
 
   // ── Load DAG and thread/message history ─────────────────────────────────────
 
   useEffect(() => {
+    useChatStore.getState().clearMessages('main_tutor');
+    useChatStore.getState().setThreads('main_tutor', []);
+    useChatStore.getState().setActiveThreadId('main_tutor', null);
     if (!courseId) return;
+
+    let cancelled = false;
 
     useDAGStore.getState().loadDAG(courseId);
 
     window.api
       .invoke(IPC.DB_THREAD_LIST, courseId, 'main_tutor')
       .then(async (res: unknown) => {
+        if (cancelled || useAppStore.getState().currentCourseId !== courseId) return;
         const r = res as { success: boolean; data?: ChatThread[] };
         const threads = r.success && r.data ? r.data : [];
-
-        // Clear stale state only once new data is ready to replace it
-        useChatStore.getState().clearMessages('main_tutor');
-        useChatStore.getState().setThreads('main_tutor', []);
-        useChatStore.getState().setActiveThreadId('main_tutor', null);
 
         let activeThread: ChatThread;
         if (threads.length > 0) {
@@ -122,10 +203,11 @@ const DAGPage: React.FC = () => {
         } else {
           // No threads yet — create one
           const createRes = await window.api.invoke(IPC.DB_THREAD_CREATE, {
-            courseId, agent: 'main_tutor',
+            courseId, agent: 'main_tutor', title: t('common.new_chat'),
           });
           const cr = createRes as { success: boolean; data?: ChatThread };
           if (!cr.success || !cr.data) return;
+          if (cancelled || useAppStore.getState().currentCourseId !== courseId) return;
           activeThread = cr.data;
           useChatStore.getState().setThreads('main_tutor', [activeThread]);
         }
@@ -133,235 +215,76 @@ const DAGPage: React.FC = () => {
         useChatStore.getState().setActiveThreadId('main_tutor', activeThread.id);
 
         // Load messages for active thread
-        window.api
-          .invoke(IPC.DB_MESSAGES_GET, courseId, 'main_tutor', undefined, activeThread.id)
-          .then((msgRes: unknown) => {
-            const mr = msgRes as { success: boolean; data?: ChatMessage[] };
-            if (mr.success && mr.data) {
-              const store = useChatStore.getState();
-              for (const msg of mr.data) store.addMessage('main_tutor', msg);
-            }
-          })
-          .catch(() => {/* ignore */});
+        const msgRes = await window.api.invoke(IPC.DB_MESSAGES_GET, courseId, 'main_tutor', undefined, activeThread.id);
+        if (cancelled || useAppStore.getState().currentCourseId !== courseId) return;
+        const mr = msgRes as { success: boolean; data?: ChatMessage[] };
+        if (mr.success && mr.data) {
+          const store = useChatStore.getState();
+          for (const msg of mr.data) store.addMessage('main_tutor', msg);
+        }
       })
       .catch(() => {/* ignore */});
-  }, [courseId]);
+    return () => { cancelled = true; };
+  }, [courseId, t]);
 
-  // ── IPC stream listeners ─────────────────────────────────────────────────────
+  // ── Chat run harness ─────────────────────────────────────────────────────────
 
-  useEffect(() => {
-    const onChunk = (data: unknown) => {
-      const { sessionId, chunk, isProgress } = data as StreamChunkPayload;
-      if (sessionId !== sessionIdRef.current) return;
-      if (isProgress) {
-        useChatStore.getState().appendProgressChunk(chunk);
-      } else {
-        useChatStore.getState().appendChunk(chunk);
-      }
-    };
-
-    const onEnd = (data: unknown) => {
-      const { sessionId } = data as StreamEndPayload;
-      if (sessionId !== sessionIdRef.current) return;
-
-      // Capture content before finalizing (for persistence)
-      const { streamingContent: content, streamingAgent: agent } = useChatStore.getState();
-      useChatStore.getState().finalizeStream();
-
-      // Save assistant message to DB
-      if (content && agent) {
-        const msg: ChatMessage = {
-          id: crypto.randomUUID(),
-          role: 'assistant',
-          content,
-          timestamp: Date.now(),
-        };
-        const cid = useAppStore.getState().currentCourseId;
-        const tid = useChatStore.getState().activeThreadId.main_tutor;
-        if (cid) {
-          window.api
-            .invoke(IPC.DB_MESSAGE_CREATE, { id: msg.id, courseId: cid, role: msg.role, content: msg.content, agent: 'main_tutor', threadId: tid ?? undefined })
-            .catch(() => {/* ignore */});
-        }
-      }
-
-      sessionIdRef.current = crypto.randomUUID();
-    };
-
-    const onError = (data: unknown) => {
-      const { sessionId, error } = data as StreamErrorPayload;
-      if (sessionId !== sessionIdRef.current) return;
-      useChatStore.getState().setStreamError('main_tutor', error);
-      useDAGStore.getState().setGenerating(false);
-      sessionIdRef.current = crypto.randomUUID();
-    };
-
-    const onDagGenerated = (data: unknown) => {
-      const { nodes, edges, summary, sessionId } = data as DagGeneratedPayload;
-      if (sessionId !== sessionIdRef.current) return;
-
+  const { handleChat, handleResendHistory, handleAbort } = useAgentChatRun({
+    agentType: 'main_tutor',
+    getCourseId: () => useAppStore.getState().currentCourseId,
+    onAbortRun: () => useDAGStore.getState().setGenerating(false),
+    onStreamError: () => useDAGStore.getState().setGenerating(false),
+    onDagGenerated: ({ nodes, edges, summary }: DagGeneratedPayload) => {
       useDAGStore.getState().setDAG(nodes, edges);
       useDAGStore.getState().setGenerating(false);
-      // Refresh course list so progress bar/card shows updated total_nodes
       useCourseStore.getState().loadCourses().catch(() => {/* ignore */});
+      if (!summary) return false;
 
-      // If summary is empty, this is a tool-triggered incremental DAG update (add/remove/connect node).
-      // Do NOT touch streaming state or add any message — the ongoing chat stream handles that.
-      if (!summary) return;
-
-      // Attach the generation progress (curriculum refs, AI reasoning) to the summary message
-      // so the user can expand it later via the "查看思路" toggle.
-      const capturedProgress = useChatStore.getState().progressContent;
-
-      // Add human-friendly summary as assistant message
       const msg: ChatMessage = {
         id: crypto.randomUUID(),
         role: 'assistant',
         content: summary,
         timestamp: Date.now(),
-        progress: capturedProgress || undefined,
+        progress: useChatStore.getState().progressContent || undefined,
       };
       useChatStore.getState().addMessage('main_tutor', msg);
-      useChatStore.getState().setStreaming(false);
-
-      // Save summary to DB
-      const cid = useAppStore.getState().currentCourseId;
-      const tid = useChatStore.getState().activeThreadId.main_tutor;
-      if (cid) {
-        window.api
-          .invoke(IPC.DB_MESSAGE_CREATE, { id: msg.id, courseId: cid, role: 'assistant', content: summary, agent: 'main_tutor', threadId: tid ?? undefined })
-          .catch(() => {/* ignore */});
-      }
-
-      sessionIdRef.current = crypto.randomUUID();
-    };
-
-    window.api.on(IPC.LLM_STREAM_CHUNK, onChunk);
-    window.api.on(IPC.LLM_STREAM_END,   onEnd);
-    window.api.on(IPC.LLM_STREAM_ERROR, onError);
-    window.api.on(IPC.DAG_GENERATED,    onDagGenerated);
-
-    return () => {
-      window.api.off(IPC.LLM_STREAM_CHUNK, onChunk);
-      window.api.off(IPC.LLM_STREAM_END,   onEnd);
-      window.api.off(IPC.LLM_STREAM_ERROR, onError);
-      window.api.off(IPC.DAG_GENERATED,    onDagGenerated);
-    };
-  }, []); // intentionally empty — handlers use getState() not props/state
+      useChatStore.getState().setStreaming(false, 'main_tutor');
+      return true;
+    },
+  });
 
   // ── Handlers ────────────────────────────────────────────────────────────────
 
-  const handleChat = useCallback(async (message: string, attachments: FileAttachment[], _webSearchEnabled = false) => {
-    const cid = useAppStore.getState().currentCourseId;
-    if (!cid) {
-      useChatStore.getState().setStreamError('main_tutor', '请先在课程列表选择一个课程');
-      return;
-    }
-    if (useChatStore.getState().isStreaming) return;
+  const handleEditAndResend = useCallback(async (id: string, payload: ChatMessageEditPayload) => {
+    if (useChatStore.getState().isStreaming || editBusy) return;
+    const { content } = payload;
+    const nextAttachments = sanitizeAttachmentsForMessage(payload.attachments ?? []);
+    const msgs = useChatStore.getState().messages.main_tutor;
+    const idx = msgs.findIndex((m) => m.id === id);
+    if (idx === -1) return;
 
-    const sid = crypto.randomUUID();
-    sessionIdRef.current = sid;
-
-    const userMsg: ChatMessage = {
-      id: crypto.randomUUID(),
-      role: 'user',
-      content: message,
-      timestamp: Date.now(),
-      attachments: attachments.length > 0 ? attachments : undefined,
-    };
-    useChatStore.getState().addMessage('main_tutor', userMsg);
-    useChatStore.getState().setStreaming(true, 'main_tutor');
-
-    // Persist user message
-    const chatTid = useChatStore.getState().activeThreadId.main_tutor;
-    window.api
-      .invoke(IPC.DB_MESSAGE_CREATE, { id: userMsg.id, courseId: cid, role: 'user', content: message, agent: 'main_tutor', threadId: chatTid ?? undefined })
-      .catch(() => {/* ignore */});
-    // Auto-title the thread on first message
-    if (chatTid) {
-      const currentMsgs = useChatStore.getState().messages.main_tutor;
-      if (currentMsgs.length === 1) {
-        const autoTitle = message.slice(0, 30).trim() || '新对话';
-        window.api.invoke(IPC.DB_THREAD_UPDATE, chatTid, { title: autoTitle }).catch(() => {/* ignore */});
-        useChatStore.getState().updateThread('main_tutor', chatTid, { title: autoTitle });
-      }
-    }
-
-    const history: LLMMessage[] = useChatStore
-      .getState()
-      .messages.main_tutor.slice(-20)
-      .map((m) => ({ role: m.role, content: m.content }));
-
-    const req: AgentChatRequest = {
-      agentType: 'main_tutor',
-      courseId:  cid,
-      sessionId: sid,
-      provider:  useSettingsStore.getState().provider as LLMProvider,
-      model:     useSettingsStore.getState().model,
-      userMessage: message,
-      messages: history,
-      attachments: attachments.length > 0 ? attachments : undefined,
-      language: i18n.language,
-    };
-
+    setEditBusy(true);
+    let shouldResend = false;
     try {
-      await window.api.invoke(IPC.AGENT_CHAT, req);
+      const res = await window.api.invoke(IPC.DB_MESSAGE_EDIT_AND_TRUNCATE, {
+        id,
+        content,
+        attachments: nextAttachments,
+        truncateMessageIds: msgs.slice(idx + 1).map((msg) => msg.id),
+      }) as IpcResponse<void>;
+      if (!res.success) throw new Error(res.error ?? t('errors.edit_message_failed'));
+
+      useChatStore.getState().updateMessage('main_tutor', id, content, nextAttachments);
+      useChatStore.getState().truncateAfterMessage('main_tutor', id);
+      shouldResend = true;
     } catch (err) {
       useChatStore.getState().setStreamError('main_tutor', err instanceof Error ? err.message : String(err));
+    } finally {
+      setEditBusy(false);
     }
-  }, []);
 
-  // Resend current history to AI without adding a new user message
-  const handleResendHistory = useCallback(async () => {
-    const cid = useAppStore.getState().currentCourseId;
-    if (!cid) return;
-    if (useChatStore.getState().isStreaming) return;
-
-    const sid = crypto.randomUUID();
-    sessionIdRef.current = sid;
-    useChatStore.getState().setStreaming(true, 'main_tutor');
-
-    const history: LLMMessage[] = useChatStore.getState().messages.main_tutor.slice(-20)
-      .map((m) => ({ role: m.role, content: m.content }));
-
-    const req: AgentChatRequest = {
-      agentType: 'main_tutor', courseId: cid, sessionId: sid,
-      provider: useSettingsStore.getState().provider as LLMProvider,
-      model:    useSettingsStore.getState().model,
-      userMessage: history[history.length - 1]?.content ?? '',
-      messages: history,
-      language: i18n.language,
-    };
-    try {
-      await window.api.invoke(IPC.AGENT_CHAT, req);
-    } catch (err) {
-      useChatStore.getState().setStreamError('main_tutor', err instanceof Error ? err.message : String(err));
-    }
-  }, []);
-
-  const handleEditAndResend = useCallback((id: string, content: string) => {
-    useChatStore.getState().updateMessage('main_tutor', id, content);
-    useChatStore.getState().truncateAfterMessage('main_tutor', id);
-    handleResendHistory();
-  }, [handleResendHistory]);
-
-  const handleAbort = useCallback(() => {
-    const sid = sessionIdRef.current;
-    sessionIdRef.current = crypto.randomUUID();
-    const abortedMsg = useChatStore.getState().finalizeWithAbort();
-    if (abortedMsg) {
-      const cid = useAppStore.getState().currentCourseId;
-      const tid = useChatStore.getState().activeThreadId.main_tutor;
-      if (cid) {
-        window.api.invoke(IPC.DB_MESSAGE_CREATE, {
-          id: abortedMsg.id, courseId: cid, role: 'assistant', content: abortedMsg.content,
-          agent: 'main_tutor', threadId: tid ?? undefined,
-        }).catch(() => {/* ignore */});
-      }
-    }
-    useDAGStore.getState().setGenerating(false);
-    window.api.invoke(IPC.LLM_ABORT, sid).catch(() => {/* ignore */});
-  }, []);
+    if (shouldResend) void handleResendHistory(nextAttachments);
+  }, [editBusy, handleResendHistory]);
 
   const handleSave = useCallback(async () => {
     const cid = useAppStore.getState().currentCourseId;
@@ -374,13 +297,13 @@ const DAGPage: React.FC = () => {
   const handleNewThread = useCallback(async () => {
     const cid = useAppStore.getState().currentCourseId;
     if (!cid || useChatStore.getState().isStreaming) return;
-    const res = await window.api.invoke(IPC.DB_THREAD_CREATE, { courseId: cid, agent: 'main_tutor' });
+    const res = await window.api.invoke(IPC.DB_THREAD_CREATE, { courseId: cid, agent: 'main_tutor', title: t('common.new_chat') });
     const r = res as { success: boolean; data?: ChatThread };
     if (!r.success || !r.data) return;
     useChatStore.getState().addThread('main_tutor', r.data);
     useChatStore.getState().setActiveThreadId('main_tutor', r.data.id);
     useChatStore.getState().clearMessages('main_tutor');
-  }, []);
+  }, [t]);
 
   const handleSwitchThread = useCallback(async (threadId: string) => {
     const cid = useAppStore.getState().currentCourseId;
@@ -413,7 +336,7 @@ const DAGPage: React.FC = () => {
   // ── Render ──────────────────────────────────────────────────────────────────
 
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', height: '100%', animation: 'pageFadeIn 150ms ease' }}>
+    <div className="ui-page-enter ui-workspace-page-enter" style={{ display: 'flex', flexDirection: 'column', height: '100%', minHeight: 0, overflow: 'hidden' }}>
       {!courseId && (
         <div style={{
           padding: '8px 16px',
@@ -423,35 +346,58 @@ const DAGPage: React.FC = () => {
           color: 'var(--amber)',
           fontWeight: 500,
         }}>
-          ⚠️ 未选择课程 — 请返回课程列表选择一个课程
+          {t('dag_page.no_course_selected')}
         </div>
       )}
-      <Allotment defaultSizes={[60, 40]}>
+      <Allotment
+        ref={dagSplitRef}
+        className={`dag-page-split ${chatPaneVisible ? '' : 'dag-chat-hidden'}`}
+        defaultSizes={dagSplitDefaultSizesRef.current}
+        onChange={handleDagSplitChange}
+        onDragEnd={handleDagSplitDragEnd}
+      >
         <Allotment.Pane minSize={300}>
           <DAGCanvas
+            key={courseId ?? ''}
+            courseId={courseId ?? ''}
             onSave={handleSave}
           />
         </Allotment.Pane>
 
-        <Allotment.Pane minSize={280}>
-          <ChatPanel
-            title={t('dag_page.chat_title')}
-            subtitle={t('dag_page.chat_subtitle')}
-            presets={mainTutorPresets}
-            messages={messages.main_tutor}
-            streamingContent={streamingContent}
-            progressContent={progressContent}
-            isStreaming={isStreaming}
-            streamError={streamError}
-            onSend={handleChat}
-            onAbort={handleAbort}
-            onEditAndResendMessage={handleEditAndResend}
-            threads={threads}
-            activeThreadId={activeThreadId}
-            onNewThread={handleNewThread}
-            onSwitchThread={handleSwitchThread}
-            onDeleteThread={handleDeleteThread}
-          />
+        <Allotment.Pane
+          minSize={chatPaneTransitioning || !chatPaneVisible ? 0 : 280}
+          visible={chatPaneVisible}
+        >
+          <div
+            style={{
+              height: '100%',
+              animation: chatPaneClosing
+                ? 'sidebarSlideOut 170ms cubic-bezier(0.4, 0, 1, 1) both'
+                : 'sidebarSlideIn 190ms cubic-bezier(0.2, 0.8, 0.2, 1) both',
+            }}
+          >
+            <ChatPanel
+              agentType="main_tutor"
+              courseId={courseId ?? ''}
+              title={t('dag_page.chat_title')}
+              subtitle={t('dag_page.chat_subtitle')}
+              presets={mainTutorPresets}
+              messages={messages.main_tutor}
+              streamingContent={streamingContent}
+              progressContent={progressContent}
+              isStreaming={isStreaming}
+              streamError={streamError}
+              onSend={handleChat}
+              onAbort={handleAbort}
+              onEditAndResendMessage={handleEditAndResend}
+              editBusy={editBusy}
+              threads={threads}
+              activeThreadId={activeThreadId}
+              onNewThread={handleNewThread}
+              onSwitchThread={handleSwitchThread}
+              onDeleteThread={handleDeleteThread}
+            />
+          </div>
         </Allotment.Pane>
       </Allotment>
     </div>

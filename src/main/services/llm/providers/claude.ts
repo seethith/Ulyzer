@@ -5,16 +5,73 @@ import type {
   ToolStreamRequest, ToolStreamResponse, ToolTurnMessage, ToolCallBlock, AssistantToolTurn,
 } from '../adapter';
 import type { TokenUsage } from '@shared/types';
+import { getModelPrice, MODEL_PRICES } from '../pricing';
+import { getCapability } from '../model-capabilities';
 
-// CNY price per 1k tokens (input / output)
-const PRICE: Record<string, { input: number; output: number }> = {
-  'claude-sonnet-4-6':          { input: 0.021,  output: 0.105 },
-  'claude-opus-4-6':            { input: 0.105,  output: 0.525 },
-  'claude-sonnet-4-5-20251001': { input: 0.021,  output: 0.105 },
-  'claude-opus-4-5-20251001':   { input: 0.105,  output: 0.525 },
-  'claude-haiku-4-5-20251001':  { input: 0.0055, output: 0.0275 },
-};
-const DEFAULT_PRICE = PRICE['claude-sonnet-4-6'];
+const DEFAULT_PRICE = MODEL_PRICES['claude-sonnet-4-6'];
+
+// ── Helpers ──────────────────────────────────────────────────────────────────
+
+/** Build a cacheable system param (array form with cache_control) when caching is requested. */
+function buildSystemParam(
+  systemContent: string,
+  cache: boolean,
+): Anthropic.TextBlockParam[] | string | undefined {
+  if (!systemContent) return undefined;
+  if (!cache) return systemContent;
+  return [{ type: 'text', text: systemContent, cache_control: { type: 'ephemeral' } }];
+}
+
+/**
+ * Resolve thinking config + safe max_tokens.
+ *
+ * Constraints (per Anthropic):
+ *   - budget_tokens minimum 1024
+ *   - max_tokens must exceed budget_tokens (we ensure ≥ budget + 1024 headroom)
+ *   - temperature must NOT be set when thinking is enabled
+ */
+function resolveThinking(
+  model: string,
+  requestedBudget: number | undefined,
+  requestedMaxTokens: number | undefined,
+): {
+  thinking: Anthropic.ThinkingConfigParam | undefined;
+  maxTokens: number;
+  allowTemperature: boolean;
+} {
+  const cap = getCapability('anthropic', model);
+  const defaultMax = Math.min(16_000, cap.maxOutputTokens);
+  const baseMax = Math.min(requestedMaxTokens ?? defaultMax, cap.maxOutputTokens);
+
+  if (
+    cap.thinkingStyle !== 'anthropic' ||
+    !requestedBudget ||
+    requestedBudget <= 0
+  ) {
+    return { thinking: undefined, maxTokens: baseMax, allowTemperature: true };
+  }
+
+  const budget = Math.max(1024, requestedBudget);
+  // max_tokens must exceed thinking budget; give the final answer at least 1024 tokens of headroom
+  const maxTokens = Math.min(Math.max(baseMax, budget + 1024), cap.maxOutputTokens);
+  return {
+    thinking: { type: 'enabled', budget_tokens: budget },
+    maxTokens,
+    allowTemperature: false,
+  };
+}
+
+/** Add cache_control to the last tool definition so tool schemas are cached too. */
+function buildToolsWithCache(tools: Anthropic.Tool[]): Anthropic.Tool[] {
+  if (tools.length === 0) return tools;
+  return tools.map((t, i) =>
+    i === tools.length - 1
+      ? ({ ...t, cache_control: { type: 'ephemeral' } } as Anthropic.Tool)
+      : t,
+  );
+}
+
+// ── Provider ─────────────────────────────────────────────────────────────────
 
 export class ClaudeProvider implements ILLMProvider {
   pricePer1kTokens = DEFAULT_PRICE;
@@ -23,7 +80,7 @@ export class ClaudeProvider implements ILLMProvider {
     const apiKey = await getApiKey('anthropic');
     if (!apiKey) throw new Error('Anthropic API Key 未设置，请在设置中配置');
 
-    const price = PRICE[options.model] ?? DEFAULT_PRICE;
+    const price = getModelPrice('anthropic', options.model);
     const client = new Anthropic({ apiKey });
 
     // Separate system prompt from messages
@@ -65,17 +122,19 @@ export class ClaudeProvider implements ILLMProvider {
       return { role: m.role as 'user' | 'assistant', content: m.content };
     });
 
-    const systemParam: Anthropic.TextBlockParam[] | string | undefined = systemContent
-      ? options.cacheSystemPrompt
-        ? [{ type: 'text' as const, text: systemContent, cache_control: { type: 'ephemeral' as const } }]
-        : systemContent
-      : undefined;
+    const systemParam = buildSystemParam(systemContent, options.cacheSystemPrompt ?? false);
+    const { thinking, maxTokens, allowTemperature } = resolveThinking(
+      options.model,
+      options.thinkingBudget,
+      options.maxTokens,
+    );
 
     const msgStream = client.messages.stream({
       model: options.model,
-      max_tokens: options.maxTokens ?? 8192,
-      ...(options.temperature !== undefined ? { temperature: options.temperature } : {}),
+      max_tokens: maxTokens,
+      ...(allowTemperature && options.temperature !== undefined ? { temperature: options.temperature } : {}),
       ...(systemParam !== undefined ? { system: systemParam } : {}),
+      ...(thinking ? { thinking } : {}),
       messages: apiMessages,
     });
 
@@ -83,6 +142,9 @@ export class ClaudeProvider implements ILLMProvider {
 
     msgStream.on('text', (text) => {
       if (!options.signal?.aborted) options.onChunk(text);
+    });
+    msgStream.on('thinking', (thinkingDelta) => {
+      if (!options.signal?.aborted) options.onThinkingChunk?.(thinkingDelta);
     });
 
     try {
@@ -104,6 +166,7 @@ export class ClaudeProvider implements ILLMProvider {
             (cacheRead  / 1000) * price.input * 0.1 +
             (u.output_tokens / 1000) * price.output,
         };
+        options.onStop?.(final.stop_reason === 'max_tokens' ? 'max_tokens' : 'end_turn');
         options.onComplete(usage);
       }
     } catch (err) {
@@ -117,16 +180,47 @@ export class ClaudeProvider implements ILLMProvider {
     const apiKey = await getApiKey('anthropic');
     if (!apiKey) throw new Error('Anthropic API Key 未设置，请在设置中配置');
 
-    const price = PRICE[req.model] ?? DEFAULT_PRICE;
+    const price = getModelPrice('anthropic', req.model);
     const client = new Anthropic({ apiKey });
 
+    const images: ImageAttachment[] = req.imageAttachments ?? [];
+    const pdfs: PdfAttachment[] = req.pdfAttachments ?? [];
+    const lastUserIndex = images.length > 0 || pdfs.length > 0
+      ? req.messages.reduce((last, message, index) => message.role === 'user' ? index : last, -1)
+      : -1;
+
     // Convert provider-neutral ToolTurnMessage[] → Anthropic.MessageParam[]
-    const apiMessages: Anthropic.MessageParam[] = req.messages.map((m: ToolTurnMessage) => {
+    const apiMessages: Anthropic.MessageParam[] = req.messages.map((m: ToolTurnMessage, index) => {
       if (m.role === 'user') {
+        if (index === lastUserIndex) {
+          return {
+            role: 'user',
+            content: [
+              ...images.map((img) => ({
+                type: 'image' as const,
+                source: {
+                  type: 'base64' as const,
+                  media_type: img.mediaType as 'image/jpeg' | 'image/png' | 'image/gif' | 'image/webp',
+                  data: img.base64,
+                },
+              })),
+              ...pdfs.map((pdf) => ({
+                type: 'document' as const,
+                source: {
+                  type: 'base64' as const,
+                  media_type: 'application/pdf' as const,
+                  data: pdf.base64,
+                },
+              })),
+              { type: 'text' as const, text: m.content },
+            ],
+          };
+        }
         return { role: 'user', content: m.content };
       }
       if (m.role === 'assistant') {
-        // Prefer stored native content (ensures verbatim replay for Anthropic)
+        // Prefer stored native content (ensures verbatim replay for Anthropic — required when
+        // the previous turn contained thinking blocks, which must be replayed signature-intact)
         if (m._nativeContent) {
           return { role: 'assistant', content: m._nativeContent as Anthropic.ContentBlock[] };
         }
@@ -155,22 +249,37 @@ export class ClaudeProvider implements ILLMProvider {
       };
     });
 
-    const tools: Anthropic.Tool[] = req.tools.map((t) => ({
-      name:         t.name,
-      description:  t.description,
-      input_schema: t.inputSchema as Anthropic.Tool['input_schema'],
-    }));
+    const tools: Anthropic.Tool[] = buildToolsWithCache(
+      req.tools.map((t) => ({
+        name:         t.name,
+        description:  t.description,
+        input_schema: t.inputSchema as Anthropic.Tool['input_schema'],
+      })),
+    );
+
+    // System prompt is always cached in the tool loop — the same prompt is replayed on every
+    // turn, so caching saves ~90% of system-prompt token cost across multi-turn conversations.
+    const systemParam = buildSystemParam(req.systemPrompt ?? '', true);
+    const { thinking, maxTokens, allowTemperature: _ } = resolveThinking(
+      req.model,
+      req.thinkingBudget,
+      req.maxTokens,
+    );
 
     const stream = client.messages.stream({
       model:      req.model,
-      max_tokens: req.maxTokens ?? 8192,
-      ...(req.systemPrompt ? { system: req.systemPrompt } : {}),
+      max_tokens: maxTokens,
+      ...(systemParam !== undefined ? { system: systemParam } : {}),
+      ...(thinking ? { thinking } : {}),
       tools,
       messages: apiMessages,
     });
 
     req.signal?.addEventListener('abort', () => { stream.abort(); }, { once: true });
     stream.on('text', (text) => { if (!req.signal?.aborted) req.onChunk(text); });
+    stream.on('thinking', (thinkingDelta) => {
+      if (!req.signal?.aborted) req.onThinkingChunk?.(thinkingDelta);
+    });
 
     const final = await stream.finalMessage();
 
@@ -192,6 +301,8 @@ export class ClaudeProvider implements ILLMProvider {
         (u.output_tokens / 1000) * price.output,
     };
 
+    // Extract text only — thinking/redacted_thinking blocks stay in _nativeContent for replay
+    // but must NOT be concatenated into the user-visible text response.
     const textParts = (final.content as Anthropic.ContentBlock[])
       .filter((b): b is Anthropic.TextBlock => b.type === 'text')
       .map((b) => b.text)
