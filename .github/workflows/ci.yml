@@ -11,7 +11,7 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
 
       # keytar loads libsecret at import time; the Ubuntu runner lacks it by default,
       # which would otherwise crash every test suite that touches the keychain.
