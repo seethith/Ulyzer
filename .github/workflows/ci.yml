@@ -13,6 +13,11 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
+      # keytar loads libsecret at import time; the Ubuntu runner lacks it by default,
+      # which would otherwise crash every test suite that touches the keychain.
+      - name: Install libsecret (keytar dependency on Linux)
+        run: sudo apt-get update && sudo apt-get install -y libsecret-1-dev
+
       - uses: actions/setup-node@v4
         with:
           node-version: 20
