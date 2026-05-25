@@ -2,10 +2,6 @@
 
 [中文](README.md) | [English](README.en.md)
 
-[![CI](https://github.com/seethith/Ulyzer/actions/workflows/ci.yml/badge.svg)](https://github.com/seethith/Ulyzer/actions/workflows/ci.yml)
-[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
-![Platform](https://img.shields.io/badge/platform-macOS%20%7C%20Windows%20%7C%20Linux-lightgrey)
-
 **AI 驱动的个人知识图谱学习工具。** 把任意学习目标拆解为知识图谱（DAG），由 AI 导师陪你逐节点完成学习、练习与复盘。
 
 > 🚧 开发中 · macOS 优先 · 欢迎 Star 和反馈

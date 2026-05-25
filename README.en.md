@@ -2,10 +2,6 @@
 
 [中文](README.md) | [English](README.en.md)
 
-[![CI](https://github.com/seethith/Ulyzer/actions/workflows/ci.yml/badge.svg)](https://github.com/seethith/Ulyzer/actions/workflows/ci.yml)
-[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
-![Platform](https://img.shields.io/badge/platform-macOS%20%7C%20Windows%20%7C%20Linux-lightgrey)
-
 **An AI-powered personal knowledge graph learning tool.** Ulyzer turns any learning goal into a DAG-based roadmap, then helps you learn node by node with AI tutors, generated materials, practice, and review.
 
 > 🚧 In development · macOS first · Stars and feedback are welcome
