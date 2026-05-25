@@ -29,6 +29,10 @@ jobs:
 
       - name: Build renderer + main (typecheck, i18n check, bundle)
         run: npm run build
+        env:
+          # The renderer bundle (mermaid/cytoscape/monaco/…) needs more heap than
+          # the CI runner's default, or electron-vite build OOM-crashes (exit 134).
+          NODE_OPTIONS: --max-old-space-size=6144
 
       - name: Package macOS dmg + upload to draft release
         run: npx electron-builder --mac --publish always
