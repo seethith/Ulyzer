@@ -38,6 +38,10 @@ jobs:
         run: npx electron-builder --mac --publish always
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          # No Apple cert in CI: force a consistent ad-hoc signature across the
+          # whole app (main binary + Electron Framework + helpers), otherwise
+          # dyld library validation fails with "different Team IDs" on launch.
+          CSC_IDENTITY_AUTO_DISCOVERY: 'false'
 
   release-win:
     runs-on: windows-latest
