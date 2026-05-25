@@ -1,0 +1,36 @@
+name: Release
+
+# Trigger by pushing a version tag, e.g.  git tag v0.2.0 && git push origin v0.2.0
+on:
+  push:
+    tags:
+      - 'v*'
+
+# Needed so electron-builder can create the GitHub (draft) Release.
+permissions:
+  contents: write
+
+jobs:
+  release-mac:
+    runs-on: macos-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Precompile Swift OCR/PDF binaries
+        run: npm run build:swift
+
+      - name: Build renderer + main (typecheck, i18n check, bundle)
+        run: npm run build
+
+      - name: Package macOS dmg + upload to draft release
+        run: npx electron-builder --mac --publish always
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}

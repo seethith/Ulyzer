@@ -6,6 +6,7 @@ publish:
   provider: github
   owner: seethith
   repo: Ulyzer
+  releaseType: draft   # upload to a DRAFT release; review then publish manually
 directories:
   buildResources: build
 files:
@@ -20,6 +21,9 @@ asarUnpack:
 win:
   executableName: ulyzer
 nsis:
+  oneClick: false                          # wizard installer (Next/Back) instead of silent one-click
+  allowToChangeInstallationDirectory: true # let the user pick the install folder
+  perMachine: false                        # install for current user (no admin prompt)
   artifactName: ${name}-${version}-setup.${ext}
   shortcutName: ${productName}
   uninstallDisplayName: ${productName}
